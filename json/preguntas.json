@@ -1,0 +1,109 @@
+{ "preguntas": {
+    "pregunta1":{ 
+        "enunciado": "Te gusta comer macarrones?",
+        "opcion1": "Sí",
+        "opcion2": "No",
+        "opcion3": "A veces"
+    },
+    "pregunta2": {
+        "enunciado": "Has arreglado un encuentro con un amigo hace unas semanas. Hoy es el día. Llegas...",
+        "opcion1": "Tarde, ya lo había olvidado",
+        "opcion2": "Justo a tiempo"
+    },
+    "pregunta3": {
+        "enunciado": "Los aniversarios son importantes para ti cuando estás en un relación?",
+        "opcion1": "Si",
+        "opcion2": "No"
+    },
+    "pregunta4": {
+        "enunciado": "Cuál de estas caracteristicas suelen encontrar más atractivas en ti?",
+        "opcion1": "Personalidad",
+        "opcion2": "Mi apariencia física",
+        "opcion3": "Ingenio"
+    },
+    "pregunta5": {
+        "enunciado": "Qué es más importante en ti?",
+        "opcion1": "La familia",
+        "opcion2": "La carrera profesional",
+        "opcion3": "Los amigos"
+    },
+    "pregunta6": {
+        "enunciado": "Cómo sueles comunicarte con tus mejores amigos?",
+        "opcion1": "Medio sociales",
+        "opcion2": "Aplicación de mensajería",
+        "opcion3": "Por teléfono"
+    },
+    "pregunta7": {
+        "enunciado": "Estás en la casa de un amigo y quieres usa el baño, pero no hay cerradura en la puerta. Entras de todos modos?",
+        "opcion1": "Si",
+        "opcion2": "No"
+    },
+    "pregunta8": {
+        "enunciado": "Si tuvieras que hacer una de estas cosas durante un año, cuál sería la peor?",
+        "opcion1": "Lavantarme muuuy temprano",
+        "opcion2": "Vivir solo en el extranjero"
+    },
+    "pregunta9": {
+        "enunciado": "Con qué frecuencia cambias tu foto de perfil en Facebook",
+        "opcion1": "Casi semanalmente",
+        "opcion2": "Cada tanto",
+        "opcion3": "Nunca, soy feo"
+    },
+    "pregunta10": {
+        "enunciado": "Con qué comenzaría un día perfecto?",
+        "opcion1": "La radio a todo volumen",
+        "opcion2": "Un baño largo",
+        "opcion3": "Desayuno en la cama"
+    },
+    "pregunta11": {
+        "enunciado": "Si tuvieras la oportunidad de construir tu propia casa, lo harías?",
+        "opcion1": "Genial, vamos ya!",
+        "opcion2": "Nah, demasiado estrés"
+    },
+    "pregunta12": {
+        "enunciado": "Crees en horóscopos y astrología?",
+        "opcion1": "Si, hay algo ahí",
+        "opcion2": "No, es una superstición"
+    },
+    "pregunta13": {
+        "enunciado": "Cuándo fue la última vez que lloraste?",
+        "opcion1": "Hace unos años",
+        "opcion2": "Hace unas semanas",
+        "opcion3": "En los últimos días"
+    },
+    "pregunta14": {
+        "enunciado": "Cuántas veces crees que se le debe permitir a un persona casarse?",
+        "opcion1": "Solo una vez",
+        "opcion2": "Dos veces como máximo",
+        "opcion3": "Las veces que quiera"
+    },
+    "pregunta15": {
+        "enunciado": "Harías las invitaciones para tu boda tú mismo o contratarías a un profesional para que haga el trabajo?",
+        "opcion1": "Haría cada una de ellas",
+        "opcion2": "Necesito ayuda!"
+    },
+    "pregunta16": {
+        "enunciado": "Haces algo bueno todos los días?",
+        "opcion1": "Sí, se podría decir",
+        "opcion2": "Puede que algún que otro día",
+        "opcion3": "No"
+    },
+    "pregunta17": {
+        "enunciado": "Te comprometes a pasar una hora al día estudiando para un examen todavía lejano. Cuánto tiempo dura tu compromiso?",
+        "opcion1": "Ni siquiera un día",
+        "opcion2": "Una o dos semanas",
+        "opcion3": "Hasta el día del examen"
+    },
+    "pregunta18": {
+        "enunciado": "Reciclas en casa?",
+        "opcion1": "Siempre!",
+        "opcion2": "La mayoria de las veces",
+        "opcion3": "No, demasiada molestia"
+    },
+    "pregunta19": {
+        "enunciado": "Te molesta más tener las cosas...",
+        "opcion1": "sin terminar",
+        "opcion2": "terminadas o completas"
+    }
+  }
+} 

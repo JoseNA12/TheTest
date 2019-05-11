@@ -1,0 +1,40 @@
+{
+    "usuarios": [
+        {
+            "id": "1",
+            "nombre": "José Navarro",
+            "username": "josena",
+            "pass": "123"
+        },
+        {
+            "id": "2",
+            "nombre": "Josué Suarez",
+            "username": "asuarez",
+            "pass": "123"
+        },
+        {
+            "id": "3",
+            "nombre": "Invitado 1",
+            "username": "invitado_1",
+            "pass": "123"
+        },
+        {
+            "id": "4",
+            "nombre": "Invitado 2",
+            "username": "invitado_2",
+            "pass": "123"
+        },
+        {
+            "id": "5",
+            "nombre": "Invitado 3",
+            "username": "invitado_3",
+            "pass": "123"
+        },
+        {
+            "id": "6",
+            "nombre": "Invitado 4",
+            "username": "invitado_4",
+            "pass": "123"
+        }
+    ]
+}
