@@ -1,6 +1,8 @@
 #define JUGADOR "jugador"
 #define MANTENIMIENTO "mantenimiento"
-#define SALIR "salir"
+#define SALIR "SALIR-213651517116858968563528224"
 
-#define LOGIN_USER "\n[The Test] -> Usuario: "
-#define LOGIN_PASS "[The Test] -> Contraseña: "
+#define LOGIN "LOGIN-188360582737075309548404818"
+#define REGISTER "REGISTER-880880837528209868247303071"
+#define INICIAR_PARTIDA "INICIAR_PARTIDA"
+
