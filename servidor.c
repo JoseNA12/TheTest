@@ -31,43 +31,41 @@ slqlite3:
 
 // Compilar con: gcc servidor.c -o servidor -lpython2.7
 // 				 gcc servidor.c -o servidor -lsqlite3
+
+// sudo ufw allow 3001
 	
 
 #define PUERTO 4444
 #define DIRECCION_IP "127.0.0.1"
+#define SIZE_BUFF 1024
 
 #define LOGIN_USER "\n[The Test] -> Usuario: "
 #define LOGIN_PASS "[The Test] -> Contraseña: "
 #define LOGIN_EMAIL "[The Test] -> Correo: "
 #define QUESTION_REGISTER_USER "\nDesea continuar?\n[1] - Si\n[2] - No\n>>> "
-#define USER_REQUEST "\n\nIngrese el nombre del jugador para jugar\n>>> "
-#define MSJ_REGISTER_USER_1 "\nSe ha registrado el usuario!\n"
+#define USER_REQUEST "\nIngrese el nombre del jugador para jugar\n>>> "
+#define MSJ_REGISTER_USER_1 Bold_Green "\nSe ha registrado el usuario!" Reset_Color
 #define MSJ_REGISTER_USER_2 "\nEl nombre de usuario indicado se encuentra en uso!\n"
 #define MSJ_REGISTER_USER_3 "\nSe ha producido un error al registrar el jugador!\n"
 #define MSJ_REGISTER_USER_4 "\nSe ha cancelado el registro del nuevo usuario!\n"
+#define MSJ_USER_1 Bold_Red "\nPor favor espere su turno..." Reset_Color
+#define MSJ_ERROR_1 Bold_Red "\nEl jugador ingresado es inválido!\n" Reset_Color
+#define MSJ_RESPUESTA_PREG "la respuesta de tu amigo es: "
+#define MSJ_RESPUESTA_ACIERTO Bold_Green "\nAcertaste la pregunta" Reset_Color
+#define MSJ_RESPUESTA_NOACIERTO Bold_Red "\nNo acertaste la pregunta" Reset_Color
 
 char *menuInicio_c = "\n\t\t" Bold_Blue " The Test - Inicio \n" CYAN"[1]"Reset_Color" - Iniciar sesión\n" CYAN"[2]"Reset_Color" - Registrarse\n" CYAN"[3]"Reset_Color" - Salir\n>>> ";
 char *menuJugador_c = "\n\t\t" Bold_Blue " The Test - Menú \n" CYAN"[1]"Reset_Color" - Seleccionar jugador\n" CYAN"[2]"Reset_Color" - Estado del servidor\n" CYAN"[3]"Reset_Color" - Cerrar sesión\n>>> ";
 int newSocket;
-char buffer[1024];
+char buffer[SIZE_BUFF];
 
-char *menuInicio() {
-	char *buffer = malloc(160);
-	strcat(buffer, "\n========================" Bold_Blue " The Test - Inicio " Reset_Color "========================\n");
-	strcat(buffer, CYAN"[1]"Reset_Color" - Iniciar sesión\n");
-	strcat(buffer, CYAN"[2]"Reset_Color" - Registrarse\n");
-	strcat(buffer, CYAN"[3]"Reset_Color" - Salir\n>>> ");
-	return buffer;
-}
+int sockfd, ret;
+struct sockaddr_in serverAddr;
+struct sockaddr_in newAddr;
 
-char *menuJugador() {
-	char *buffer = malloc(160);
-	strcat(buffer, "\n========================" Bold_Blue " The Test - Menú " Reset_Color "========================\n");
-	strcat(buffer, CYAN"[1]"Reset_Color" - Seleccionar jugador\n");
-	strcat(buffer, CYAN"[2]"Reset_Color" - Estado del servidor\n");
-	strcat(buffer, CYAN"[3]"Reset_Color" - Cerrar sesión\n>>> ");
-	return buffer;
-}
+socklen_t addr_size;
+pid_t childpid;
+
 
 struct Jugador* enviar_iniciarSesion(char* username, char* password){
 	struct Jugador *jugadorNuevo;
@@ -79,29 +77,189 @@ struct Jugador* enviar_iniciarSesion(char* username, char* password){
 	return jugadorNuevo;
 }
 
-struct Partida* set_Partida(char* jugador1, char* jugador2){
-	// Si ya hay una partida entre los 2 jugadores, retorna la misma. Sino crea una nueva
-	struct Partida *partida;
-	partida = iniciarPartida(jugador1,jugador2);
-	printf("Partida creada %d \n",partida->idPartida);
-	return partida;
-	// Enviar el idPartida para obtener una pregunta y sus opciones para los jugadores
+// dar formato a la pregunta con sus opciones para enviarsela al cliente
+void formatoPregunta(char *enunciado_enviar, struct Pregunta *pregunta, int *maximoOpciones) {
+	bzero(enunciado_enviar, sizeof(enunciado_enviar));
+	strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, pregunta->enunciado);
+	strcat(enunciado_enviar, Reset_Color);
+
+	int op = 0;
+	while (op < 3) {
+		if (pregunta->opciones[op].idRespuesta <= 0) {
+			break;
+		}
+		strcat(enunciado_enviar, "\n");
+		strcat(enunciado_enviar, Bold_Magenta "[");
+		char temp[10]; 
+		sprintf(temp, "%d", (op + 1)); 
+		strcat(enunciado_enviar, temp);
+		strcat(enunciado_enviar, "]" Reset_Color " - ");
+		strcat(enunciado_enviar, pregunta->opciones[op].respuesta); 
+		op += 1;
+		*maximoOpciones += 1;
+	}
+	strcat(enunciado_enviar, "\n>>> ");
+}
+
+void formatoRespuesta(char *enunciado_enviar, struct Opcion *opcion) {
+	bzero(enunciado_enviar, sizeof(enunciado_enviar));
+	strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "La respuesta de tu amigo es: ");
+	strcat(enunciado_enviar, opcion->respuesta); 
+	strcat(enunciado_enviar, Reset_Color);
+	strcat(enunciado_enviar, "\n>>> ");
+}
+
+// validar que la opcion que ingresó el usuario segun la pregunta enviada, 
+// sea valida, porque hay preguntas con 2 o 3 opciones para responder 
+int validarOpcionRespuestaUsuario(char opcion[], int maximoOpciones) {
+	char op_1[] = "1";
+	char op_2[] = "2";
+	char op_3[] = "3";
+
+	if (maximoOpciones == 2) {
+		if ((strcmp(opcion, op_1) == 0) || (strcmp(opcion, op_2) == 0)) {
+			return 1;
+		} 
+	}
+	else {
+		if ((strcmp(opcion, op_1) == 0) || (strcmp(opcion, op_2) == 0) || (strcmp(opcion, op_3) == 0) ) {
+			return 1;
+		} 
+	}
+	return 0;
+}
+
+void responder_nuevasPreguntas(int idJugadorActual, int idPartida) {
+	char *preguntaUtilizadas;
+	struct Pregunta *pregunta;
+	int maximoOpciones = 0;
+
+	for(int i=0; 2>i; i+=1){
+		preguntaUtilizadas = armarTuplaPreguntadasUsadas(idPartida);
+		pregunta = getPregunta(preguntaUtilizadas);
+		
+		send(newSocket, SEND_PREGUNTA, SIZE_BUFF, 0); // pido que ingrese el usuario
+
+		char enunciado_enviar[SIZE_BUFF];
+		formatoPregunta(enunciado_enviar, pregunta, &maximoOpciones);
+		
+		l_opcion_pregunta:
+			send(newSocket, enunciado_enviar, SIZE_BUFF, 0);
+			bzero(buffer, sizeof(buffer));
+			// guardar respuesta
+			recv(newSocket, buffer, sizeof(buffer), 0);
+
+			if (validarOpcionRespuestaUsuario(buffer, maximoOpciones)) {
+				printf("Insertando NUEVA pregunta %d y respuesta %d \n. Partida %d \n. Jugador %d \n",pregunta->idPregunta, pregunta->opciones[atoi(buffer) - 1].idRespuesta, idPartida, idJugadorActual);
+				insert_turno(idPartida, idJugadorActual, pregunta->opciones[atoi(buffer) - 1].idRespuesta);
+			}
+			else { goto l_opcion_pregunta; }
+
+		free(pregunta); // liberar el malloc hecho por la funcion
+		free(preguntaUtilizadas);
+		maximoOpciones = 0;
+	}
+}
+
+void responder_preguntas_oponente(int idJugadorActual, int idPartida) {		
+	struct Pregunta *preguntas;
+	struct Opcion *opcionCorrecta = (struct Opcion*) malloc(sizeof(struct Opcion) * 2);
+	int maximoOpciones = 0; char opcionesRespuestas[10] = " 2, "; char respuesta_oponente[500];
+	preguntas = getPreguntaTurnoAnterior(idPartida); // Lista de preguntas
+	char enunciado_enviar[SIZE_BUFF];
+
+	for(int i=0; 2>i; i+=1){
+		send(newSocket, SEND_PREGUNTA, SIZE_BUFF, 0); // pido que ingrese el usuario
+
+		formatoPregunta(enunciado_enviar, &preguntas[i], &maximoOpciones);
+
+		l_opcion_pregunta:
+			send(newSocket, enunciado_enviar, SIZE_BUFF, 0);
+			bzero(buffer, sizeof(buffer));
+			recv(newSocket, buffer, sizeof(buffer), 0);
+
+			if (validarOpcionRespuestaUsuario(buffer, maximoOpciones)) {
+				//printf("Insertando pregunta %d y respuesta %d \n. Partida %d \n. Jugador %d \n",preguntas[i].idPregunta, preguntas[i].opciones[atoi(buffer) - 1].idRespuesta, idPartida, idJugadorActual);
+				insert_turno(idPartida, idJugadorActual, preguntas[i].opciones[atoi(buffer) - 1].idRespuesta);
+				opcionCorrecta = getRespuestaCorrecta(idPartida, idJugadorActual, preguntas[i].idPregunta);
+				
+				if(preguntas[i].opciones[atoi(buffer) - 1].idRespuesta == opcionCorrecta->idRespuesta) {
+					establecerRespuestaAcertada(preguntas[i].opciones[atoi(buffer) - 1].idRespuesta, idPartida);
+					sumarPuntos(idPartida, preguntas[i].puntaje);
+					
+					strcat(respuesta_oponente, MSJ_RESPUESTA_ACIERTO);
+					strcat(respuesta_oponente, opcionesRespuestas);
+				}
+				else{ // no acertaste
+					strcat(respuesta_oponente, MSJ_RESPUESTA_NOACIERTO);	
+					strcat(respuesta_oponente, opcionesRespuestas);				
+				}
+				strcpy(opcionesRespuestas, " 1, ");
+
+				bzero(enunciado_enviar, sizeof(enunciado_enviar));
+
+				strcat(respuesta_oponente, MSJ_RESPUESTA_PREG);
+				strcat(respuesta_oponente, opcionCorrecta->respuesta);
+			}
+			else { goto l_opcion_pregunta; }
+
+		free(opcionCorrecta);
+		maximoOpciones = 0;
+	}
+	
+	free(preguntas);
+
+	send(newSocket, RECEIVE_OPCIONES, strlen(RECEIVE_OPCIONES), 0);
+	send(newSocket, respuesta_oponente, SIZE_BUFF, 0);
+	bzero(buffer, sizeof(buffer));
 }
 
 
+void jugarPartida(char usuario_login[]) {
+	struct Partida *partida; 
+	partida = /*(struct Partida*)*/malloc(sizeof(struct Partida));
+	char *consulta; consulta = usuariosRegistrados(usuario_login);
+	strcat(consulta, "\n" USER_REQUEST); // mensaje de ingresar el nombre del jugador
+	send(newSocket, consulta, SIZE_BUFF, 0); // le envio los jugadores registrados
+	free(consulta);
+
+	bzero(buffer, sizeof(buffer));	
+	recv(newSocket, buffer, SIZE_BUFF, 0); // recibo el jugador con el que quiere jugar
+
+	if (getIdJugador(buffer) != -1 && strcmp(usuario_login, buffer) != 0) { // valido que el jugador digitado sea valido, y no se haya insertado el mismo
+		int idJugador2_Int = getIdJugador(buffer);
+		int idJugador1_Int = getIdJugador(usuario_login);
+
+		*partida = verificarExistenciaPartida(idJugador1_Int, idJugador2_Int);
+
+		if (partida->idPartida == 0) { // la partida no existe, hay que crear una. Respondo nuevas preguntas para mi
+			partida = crearNuevaPartida(idJugador1_Int, idJugador2_Int);
+			printf("Se ha creado una nueva partida: " Bold_Cyan "%s" Bold_Yellow " vs " Bold_Cyan "%s\n" Reset_Color, usuario_login, buffer);
+
+			responder_nuevasPreguntas(idJugador1_Int, partida->idPartida);
+		}
+		else { // si existe, se continua la partida
+			if (comprobarMiTurno(partida->idPartida, idJugador1_Int)) {  
+				responder_preguntas_oponente(idJugador1_Int, partida->idPartida);	// 1) Responder preguntas oponente
+				responder_nuevasPreguntas(idJugador1_Int, partida->idPartida);		// 2) Responder nuevas preguntas para mi
+			}
+			else { // Turno del rival. Osea que el mae actual se pone a esperar. 
+				send(newSocket, REGISTER, strlen(REGISTER), 0);
+				send(newSocket, MSJ_USER_1, SIZE_BUFF, 0); // msj diciendo que tiene que esperar
+			}
+		}
+		bzero(buffer, sizeof(buffer));
+		free(partida);
+	}
+	else {
+		send(newSocket, REGISTER, strlen(REGISTER), 0);
+		send(newSocket, MSJ_ERROR_1, SIZE_BUFF, 0);
+	}
+}
+
 void crearServidor() {
-	int sockfd, ret;
-	struct sockaddr_in serverAddr;
-
-	/*int newSocket;
-	char buffer[1024];*/
-
-	struct sockaddr_in newAddr;
-
-	socklen_t addr_size;
-
-	pid_t childpid;
-
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		puts("[-]Error en conexión");
@@ -128,6 +286,10 @@ void crearServidor() {
 		puts("[-]Error al enlazar el puerto");
 	}
 
+	if (initConnection() != 0) { // abrir la conexion con el DB
+		puts("Error al establecer conexión con la base de datos");
+	}
+
 	while (1) {
 		newSocket = accept(sockfd, (struct sockaddr*)&newAddr, &addr_size);
 		if (newSocket < 0) {
@@ -139,24 +301,17 @@ void crearServidor() {
 		if ((childpid = fork()) == 0) {
 			close(sockfd);
 
-			recv(newSocket, buffer, 1024, 0); // apenas se conecta un cliente, recibo el tipo de usuario que es (jugador o de mantenimiento)
+			recv(newSocket, buffer, SIZE_BUFF, 0); // apenas se conecta un cliente, recibo el tipo de usuario que es (jugador o de mantenimiento)
 			char tipo_usuario[24]; 
 			strcpy(tipo_usuario, buffer);
 			char usuario_login[50];
 			char pass_login[50];
 			char email_user[50];
-			//char *menuInicio_= menuInicio();
-			//char *menuJugador_ = menuJugador();
-
-			if (initConnection() != 0) { // abrir la conexion con el DB
-				puts("Error al establecer conexión con la base de datos");
-				break;
-			}
 
 			l_menu_inicio:
 				send(newSocket, menuInicio_c, 165, 0); // mostrar menu inicio
 				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
+				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 
 				if (strcmp(buffer, "1") == 0) {
 					goto l_login_jugador;
@@ -165,8 +320,8 @@ void crearServidor() {
 					goto l_registrar_jugador;
 				}
 				else if (strcmp(buffer, "3") == 0) {
-					send(newSocket, SALIR, 1024, 0);
-					endConnection(); // cerrar comunicacion con la BD
+					send(newSocket, SALIR, SIZE_BUFF, 0);
+					//endConnection(); // cerrar comunicacion con la BD
 					printf("Desconexión de " Bold_Red "%s:%d\n" Reset_Color, inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
 					goto l_cerrar_conexion;
 				}
@@ -178,7 +333,7 @@ void crearServidor() {
 				send(newSocket, LOGIN_USER, strlen(LOGIN_USER), 0); // pido que ingrese el usuario
 
 				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
+				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 
 				strcpy(usuario_login, buffer); // guardo el nombre de usuario
 
@@ -186,7 +341,7 @@ void crearServidor() {
 				send(newSocket, LOGIN_PASS, strlen(LOGIN_PASS), 0); // pido que ingrese la contraseña
 				
 				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
+				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 
 				strcpy(pass_login, buffer); // guardo la contraseña
 				bzero(buffer, sizeof(buffer));
@@ -199,34 +354,29 @@ void crearServidor() {
 
 					if (strcmp(tipo_usuario, JUGADOR) == 0) {
 						
-						send(newSocket, LOGIN, 1024, 0); // le envio su ID al cliente
+						send(newSocket, LOGIN, SIZE_BUFF, 0); // le envio su ID al cliente
 						//send(newSocket, &resp, sizeof(resp), 0);
 						send(newSocket, jugadorNuevo, sizeof(struct Jugador)+1, 0); 
 						
 						while (1) {
-							send(newSocket, menuJugador_c, 1024, 0);
+							send(newSocket, menuJugador_c, SIZE_BUFF, 0);
 							bzero(buffer, sizeof(buffer));
-							recv(newSocket, buffer, 1024, 0); // recibo alguna opcion del menu
+							recv(newSocket, buffer, SIZE_BUFF, 0); // recibo alguna opcion del menu
 
 							if (strcmp(buffer, "1") == 0) {
-								struct Partida *partida;
-								char *consulta = usuariosRegistrados(usuario_login);
-								strcat(consulta, USER_REQUEST);
-								send(newSocket, consulta, 1024, 0);
-								bzero(buffer, sizeof(buffer));	
-								recv(newSocket, buffer, 1024, 0); // recibo alguna opcion del menu*/
-								partida = set_Partida(usuario_login,buffer);
-								send(newSocket, "La partida ha sido creada", 1024, 0);								
+								jugarPartida(usuario_login);
+								bzero(buffer, sizeof(buffer));
+								//send(newSocket, "La partida ha sido creada", SIZE_BUFF, 0);								
 							}
 							else if (strcmp(buffer, "2") == 0) {
-								send(newSocket, "Estado del servidor: jugadores en juego activo y estadísticas tales como : usuarios, número de preguntas, número de usos, aciertos y fallos totales del sistema y por cada pregunta, puntajes entre todos los pares de usuarios en juego como un ranking.", 1024, 0);
+								send(newSocket, "Estado del servidor: jugadores en juego activo y estadísticas tales como : usuarios, número de preguntas, número de usos, aciertos y fallos totales del sistema y por cada pregunta, puntajes entre todos los pares de usuarios en juego como un ranking.", SIZE_BUFF, 0);
 								// estado del servidor
 								bzero(buffer, sizeof(buffer));	
-								recv(newSocket, buffer, 1024, 0); // recibo alguna opcion del menu
+								recv(newSocket, buffer, SIZE_BUFF, 0); // recibo alguna opcion del menu
 								
 							}
 							else if (strcmp(buffer, "3") == 0) { // cerrar sesion
-								// endConnection();
+								free(jugadorNuevo);
 								goto l_menu_inicio;
 							}
 						}
@@ -245,25 +395,25 @@ void crearServidor() {
 				send(newSocket, LOGIN_USER, strlen(LOGIN_USER), 0); // pido que ingrese el usuario
 				
 				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
+				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 				strcpy(usuario_login, buffer); // guardo el nombre de usuario
 
 				send(newSocket, LOGIN_PASS, strlen(LOGIN_PASS), 0); // pido que ingrese el usuario
 				
 				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
+				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 				strcpy(pass_login, buffer); // guardo la contraseña
 
 				send(newSocket, LOGIN_EMAIL, strlen(LOGIN_EMAIL), 0); // pido que ingrese el usuario
 				
 				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
+				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 				strcpy(email_user, buffer); // guardo el correo
 
 				//send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar 
 				send(newSocket, QUESTION_REGISTER_USER, strlen(QUESTION_REGISTER_USER), 0); // envio mensaje de confirmación
 				bzero(buffer, sizeof(buffer));				
-				recv(newSocket, buffer, 1024, 0); // lo recibo
+				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 				
 				if (strcmp(buffer, "1") == 0) {
 					
@@ -282,34 +432,11 @@ void crearServidor() {
 					}
 				}
 				else {
-					//send(newSocket, Bold_Red MSJ_REGISTER_USER_4 Reset_Color, strlen(MSJ_REGISTER_USER_3) + 13, 0);					
+					send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar 
+					send(newSocket, Bold_Red MSJ_REGISTER_USER_4 Reset_Color, strlen(MSJ_REGISTER_USER_3) + 13, 0);					
 				}
 				bzero(buffer, sizeof(buffer));
 				goto l_menu_inicio;
-
-
-		/*	t_iniciar_partida:
-				send(newSocket, INICIAR_PARTIDA, strlen(INICIAR_PARTIDA), 0); // pido que ingrese el usuario
-				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
-				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, 1024, 0); // lo recibo
-
-				strcpy(usuario_login, buffer); // guardo el nombre de usuario
-
-				send(newSocket, strcat(usuariosRegistrados(usuario_login), USER_REQUEST), 1024, 0);
-				bzero(buffer, sizeof(buffer));	
-				recv(newSocket, buffer, 1024, 0); // recibo alguna opcion del menu
-				iniciarPartida();*/
-			
-
-			/*t_iniciar_partida:
-				char *consulta = usuariosRegistrados(usuario_login);
-				strcat(consulta, USER_REQUEST);
-				send(newSocket, consulta, 1024, 0);
-				bzero(buffer, sizeof(buffer));	
-				recv(newSocket, buffer, 1024, 0); // recibo alguna opcion del menu*/
-				
 
 		}
 	}
@@ -320,19 +447,25 @@ void crearServidor() {
 
 int main() {
 
-	/*struct Pregunta *preguntaNueva;
-	preguntaNueva = getPregunta();
-	printf("Struct preguntaNueva  %s - %d \n",preguntaNueva->enunciado, preguntaNueva->puntaje);*/
-	/*struct Jugador *jugador;
-	jugador = enviar_iniciarSesion("xd","123");*/
+	/*initConnection();
+	struct Pregunta *preguntas;
+	preguntas = getPreguntaTurnoAnterior(2); // Lista de preguntas
+	struct Pregunta *pregunta;
+	struct Opcion opcionPrint;
+	for(int i=0; 2>i; i+=1){
+		pregunta = &preguntas[i];
+		printf("Enunciado pregunta %d: %s \n",i,pregunta->enunciado);
+		printf("Puntaje pregunta %d: %d \n",i,pregunta->puntaje);
 
-	/*struct Partida *partida;
-	partida = iniciarPartida(2,3);
-	printf("Servidor %d \n",partida->idPartida);
-    printf("Servidor %d \n",partida->idJugador1);
-    printf("Servidor %d \n",partida->idJugador2);
-    printf("Servidor %d \n",partida->nivel);
-    printf("Servidor %d \n",partida->puntaje);*/
+		opcionPrint = pregunta->opciones[0];
+		printf("Opcion 1 %s \n",opcionPrint.respuesta);
+
+		opcionPrint = pregunta->opciones[1];
+		printf("Opcion 2 %s \n",opcionPrint.respuesta);
+
+		opcionPrint = pregunta->opciones[2];
+		printf("Opcion 3 %s \n",opcionPrint.respuesta);
+	}*/
 
 	crearServidor();
 

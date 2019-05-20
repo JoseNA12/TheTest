@@ -9,5 +9,6 @@
 #define Magenta "\033[0;35m"
 #define Bold_Magenta "\033[1;35m"
 #define CYAN "\x1B[36m"
+#define Bold_Cyan "\033[1;36m"
 #define WHITE "\x1B[37m"
 #define Reset_Color "\033[0m"
