@@ -14,7 +14,8 @@
 #define PUERTO 4444
 #define DIRECCION_IP "127.0.0.1" 
 
-#define SIZE_BUFF 1024
+
+#define SIZE_BUFF 2000
 
 struct Jugador *jugadorActual;
 

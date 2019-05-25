@@ -88,20 +88,6 @@ struct Pregunta* getPregunta(char* tuplaPreguntasUsadas) {
         indice += 1;
     }
     sqlite3_finalize(res);
-
-    /*printf("Pregunta %d \n",preguntaJuego->idPregunta);
-    printf("Pregunta %s - %d \n",preguntaJuego->enunciado, preguntaJuego->puntaje);
-
-    struct Opcion opcionPrint;
-    opcionPrint = preguntaJuego->opciones[0];
-    printf("Opcion %s \n",opcionPrint.respuesta);
-
-    opcionPrint = preguntaJuego->opciones[1];
-    printf("Opcion 2 %s \n",opcionPrint.respuesta);
-
-    opcionPrint = preguntaJuego->opciones[2];
-    printf("Opcion 3 %s \n",opcionPrint.respuesta);*/
-
     return preguntaJuego;
 }
 
@@ -189,7 +175,8 @@ char *usuariosRegistrados(char pNombreUsuario[]) {
 
     char *usuarios; usuarios = malloc(sizeof (char) * 1024);
     int cont = 0;
-    bzero(usuarios, sizeof(usuarios));
+    memset(usuarios, 0, strlen(usuarios) + 1);
+    //bzero(usuarios, sizeof(usuarios));
     strcat(usuarios, "\n" Bold_Blue);
 
 	while ((rc = sqlite3_step(res)) == SQLITE_ROW) {
@@ -410,6 +397,27 @@ struct Opcion *getRespuestaCorrecta(int idPartida, int idJugadorActual, int idPr
     return opcionCorrecta;    
 }
 
+struct Partida *getPuntosYNivelPartida(int idPartida) {
+    struct Partida *partida;
+    partida = malloc(sizeof(struct Partida));
+
+    int rc = setConnection("SELECT nivel, puntos FROM partida WHERE idPartida = ?;");
+    rc = sqlite3_bind_int(res, 1, idPartida);
+    
+    if (rc != SQLITE_OK) {
+        printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
+        sqlite3_close(db);
+    } 
+
+    while ((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        partida->nivel = sqlite3_column_int(res, 0); 
+        partida->puntaje = sqlite3_column_int(res, 1); 
+    }
+
+    sqlite3_finalize(res);
+    return partida;
+}
+
 void establecerRespuestaAcertada(int idPR_Marcado, int idPartida){
     int rc = setConnection("UPDATE turnoJugador SET resultadoTurno = 1 WHERE idPR = ? and idPartida = ?;");
     rc = sqlite3_bind_int(res, 1, idPR_Marcado);
@@ -461,171 +469,137 @@ void sumarPuntos(int idPartida, int puntajePregunta){
  El programa servidor puede ser consultado directamente para ver el estado de los juegos actuales en el sistema,
  jugadores en juego activo y estadísticas tales como : usuarios, número de preguntas, número de usos, aciertos y
  fallos totales del sistema y por cada pregunta, puntajes entre todos los pares de usuarios en juego como un ranking.
--- Cantidad partidas
-select count(idPartida) from partida;
-
--- Cantidad turnos de una partida
-select pt.idPartida,pt.idJugador1,pt.idJugador2,count(tj.idPP) as 'cantidad turnos' from partida pt
-inner join turnoJugador tj on tj.idPartida = pt.idPartida
-group by pt.idPartida,pt.idJugador1,pt.idJugador2;
-
--- Jugadores en juego activo
-select count(distinct tj.idJugador) as 'cantidad jugadores en juego activo' from turnoJugador tj;
-
--- Cantidad usuarios
-select count(idUsuario) from usuarios;
-
--- Cantidad total de preguntas
-select count(idPregunta) from pregunta;
-
--- Cantidad respuestas correctas
-select count(distinct tj.idPR) as 'respuestas correctas' from turnoJugador tj
-where tj.resultadoTurno = 1;
-
--- Cantidad respuestas incorrectas
-select count(distinct tj.idPR) as 'respuestas incorrectas' from turnoJugador tj
-where tj.resultadoTurno = 0;
-
--- Cantidad respuestas correctas por pregunta
-select p.idPregunta, count(distinct tj.idPR) as 'respuestas correctas' from turnoJugador tj
-inner join "pregunta-respuesta" pr on pr.idPR = tj.idPR
-inner join pregunta p on p.idPregunta = pr.idPregunta
-where tj.resultadoTurno = 1
-group by p.idPregunta;
-
--- Cantidad respuestas incorrectas por pregunta
-select p.idPregunta, count(distinct tj.idPR) as 'respuestas correctas' from turnoJugador tj
-inner join "pregunta-respuesta" pr on pr.idPR = tj.idPR
-inner join pregunta p on p.idPregunta = pr.idPregunta
-where tj.resultadoTurno = 0
-group by p.idPregunta;
-
-
--- Ranking
-select p.idPartida, p.idJugador1, p.idJugador2, p.puntos
-from partida p
-order by p.puntos desc
-
 */
 
-int cantidadPartidas(){
-    int rc = setConnection("select count(idPartida) from partida;");
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
+void jugadoresEnJuegoActivo(char* enunciado_enviar){
+    //bzero(enunciado_enviar, sizeof(enunciado_enviar));
+    memset(enunciado_enviar, 0, strlen(enunciado_enviar) + 1);
+    strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "Jugadores");
+	strcat(enunciado_enviar, Reset_Color);
+    strcat(enunciado_enviar, Bold_Magenta"\nPartida | Jugador 1 | Jugador 2\n"Reset_Color);
+    int rc = setConnection("select p.idPartida,u.nombreUsuario from partida p inner join usuarios u on u.idUsuario = p.idJugador1 OR u.idUsuario = p.idJugador2 order by p.puntos desc");
+    int c = 0;
+    while((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        if(c){ // Info del jugador 2
+            strcat(enunciado_enviar, sqlite3_column_text(res, 1));
+            strcat(enunciado_enviar, "\n");
+            c = 0;
+        }else{ // Info de la partida y jugador 1
+            strcat(enunciado_enviar, sqlite3_column_text(res, 0));
+            strcat(enunciado_enviar, " | ");
+            strcat(enunciado_enviar, sqlite3_column_text(res, 1));
+            strcat(enunciado_enviar, " | ");
+            c+=1;
+        } 
     }
-
-    return 0;
+    strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>>");
+    sqlite3_finalize(res);
 }
 
-int cantidadTurnosPorPartida(int idPartida){
-    int rc = setConnection("select count(tj.idPP) as 'cantidad turnos' from turnoJugador tj where tj.idPartida = ?;");
-    rc = sqlite3_bind_int(res, 1, idPartida);
-    
-    if (rc != SQLITE_OK) {
-        printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
-        sqlite3_close(db);
-    } 
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
+void jugadoresRegistrados(char* enunciado_enviar){
+    //bzero(enunciado_enviar, sizeof(enunciado_enviar));
+    memset(enunciado_enviar, 0, strlen(enunciado_enviar) + 1);
+    strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "Jugadores registrados");
+	strcat(enunciado_enviar, Reset_Color);
+    strcat(enunciado_enviar, "\n");
+    int rc = setConnection("select nombreUsuario from usuarios;");
+    while((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        strcat(enunciado_enviar, sqlite3_column_text(res, 0));
+        strcat(enunciado_enviar, "\n");
     }
-
-    return 0;
-}
-
-// ***
-int jugadoresEnJuegoActivo(){
-    int rc = setConnection("select count(distinct tj.idJugador) as 'cantidad jugadores en juego activo' from turnoJugador tj;");
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
-    }
-
-    return 0;
-}
-
-// -***
-int jugadoresRegistrados(){
-    int rc = setConnection("select count(idUsuario) from usuarios;");
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
-    }
-
-    return 0;
+    strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>>");
+    sqlite3_finalize(res);
 }
 
 int numeroPreguntas(){
     int rc = setConnection("select count(idPregunta) from pregunta;");
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
+    int retorno = 0;
+    while((rc = sqlite3_step(res)) == SQLITE_ROW){
+        retorno = sqlite3_column_int(res, 0); 
     }
-
-    return 0;
+    sqlite3_finalize(res);
+    return retorno;
 }
 
-int numeroPreguntasCorrectas(){
-    int rc = setConnection("select count(distinct tj.idPR) as 'respuestas correctas' from turnoJugador tj where tj.resultadoTurno = 1;");
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
-    }
-
-    return 0;
-}
-
-int numeroPreguntasIncorrectas(){
-    int rc = setConnection("select count(distinct tj.idPR) as 'respuestas incorrectas' from turnoJugador tj where tj.resultadoTurno = 0;");
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
-    }
-
-    return 0;
-}
-
-int numeroPreguntasCorrectasPorPregunta(int idPregunta){
-    int rc = setConnection("select count(distinct tj.idPR) as 'respuestas correctas' from turnoJugador tj inner join [pregunta-respuesta] pr on pr.idPR = tj.idPR inner join pregunta p on p.idPregunta = pr.idPregunta where tj.resultadoTurno = 1 and p.idPregunta = ?;");
-    rc = sqlite3_bind_int(res, 1, idPregunta);
-    
+int numeroPreguntasPorEstado(int estadoPregunta){ // Correcto o Incorrecto
+    int retorno = 0;
+    int rc = setConnection("select count(distinct tj.idPR) from turnoJugador tj where tj.resultadoTurno = ?;");
+    rc = sqlite3_bind_int(res, 1, estadoPregunta);
     if (rc != SQLITE_OK) {
         printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
         sqlite3_close(db);
     } 
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
-    }
-
-    return 0;
-}
-
-int numeroPreguntasIncorrectasPorPregunta(int idPregunta){
-    int rc = setConnection("select count(distinct tj.idPR) as 'respuestas correctas' from turnoJugador tj inner join [pregunta-respuesta] pr on pr.idPR = tj.idPR inner join pregunta p on p.idPregunta = pr.idPregunta where tj.resultadoTurno = 0 and p.idPregunta = ?;");
-    rc = sqlite3_bind_int(res, 1, idPregunta);
-    
-    if (rc != SQLITE_OK) {
-        printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
-        sqlite3_close(db);
-    } 
-
-    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        return sqlite3_column_int(res, 0); 
-    }
-
-    return 0;
-}
-// ***
-void ranking(){
-    int rc = setConnection("select p.idPartida, p.idJugador1, p.idJugador2, p.puntos from partida p order by p.puntos desc;");
-
     while((rc = sqlite3_step(res)) == SQLITE_ROW) {
-        printf(sqlite3_column_int(res, 0)); 
+        retorno = sqlite3_column_int(res, 0); 
     }
+    sqlite3_finalize(res);
+    return retorno;
 }
 
+void estadisticasPorPregunta(char* enunciado_enviar, int estadoPregunta){
+    char temp[10]; 
+    //bzero(enunciado_enviar, sizeof(enunciado_enviar));
+    memset(enunciado_enviar, 0, strlen(enunciado_enviar) + 1);
+    strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "Estadísticas por pregunta");
+	strcat(enunciado_enviar, Reset_Color);
+    int rc = setConnection("select p.enunciado, count(tj.idPR) from pregunta p inner join [pregunta-respuesta] pr on pr.idPregunta = p.idPregunta inner join turnoJugador tj on tj.idPR = pr.idPR where tj.resultadoTurno = ? group by p.enunciado;");
+    rc = sqlite3_bind_int(res, 1, estadoPregunta);
+    if (rc != SQLITE_OK) {
+        printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
+        sqlite3_close(db);
+    } 
+    while((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        strcat(enunciado_enviar, "\nPregunta: ");
+        strcat(enunciado_enviar, sqlite3_column_text(res, 0));
+        if(estadoPregunta){
+            strcat(enunciado_enviar, "\nRespuestas correctas: ");
+        }else{
+            strcat(enunciado_enviar, "\nRespuestas incorrectas: ");
+        }
+        memset(temp, 0, 10);
+        sprintf(temp, "%d", sqlite3_column_int(res, 1)); 
+        strcat(enunciado_enviar, temp);
+        strcat(enunciado_enviar, "\n");
+    }
+    sqlite3_finalize(res);
+}
 
-
-
+void ranking(char* enunciado_enviar){
+    //bzero(enunciado_enviar, sizeof(enunciado_enviar));
+    memset(enunciado_enviar, 0, strlen(enunciado_enviar) + 1);
+    strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "Ranking");
+	strcat(enunciado_enviar, Reset_Color);
+    strcat(enunciado_enviar, Bold_Magenta "\nPartida | Jugador 1 | Jugador 2 | Nivel | Puntos \n" Reset_Color);
+    int rc = setConnection("select p.idPartida,u.nombreUsuario, p.nivel, p.puntos from partida p inner join usuarios u on u.idUsuario = p.idJugador1 OR u.idUsuario = p.idJugador2 order by p.puntos, p.nivel desc");
+    int c = 0;
+    int rank = 1;
+    while((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        if(c){ // Info del jugador 2, nivel y puntos
+            strcat(enunciado_enviar, sqlite3_column_text(res, 1));
+            strcat(enunciado_enviar, " | ");
+            strcat(enunciado_enviar, sqlite3_column_text(res, 2));
+            strcat(enunciado_enviar, " | ");
+            strcat(enunciado_enviar, sqlite3_column_text(res, 3));
+            strcat(enunciado_enviar, "\n");
+            c = 0;
+            rank += 1;
+        }else{ // Info de la partida y jugador 1
+            strcat(enunciado_enviar, "[");
+            char temp[10]; 
+		    sprintf(temp, "%d", rank); 
+		    strcat(enunciado_enviar, temp);
+            strcat(enunciado_enviar, "] ");
+            strcat(enunciado_enviar, sqlite3_column_text(res, 0));
+            strcat(enunciado_enviar, " | ");
+            strcat(enunciado_enviar, sqlite3_column_text(res, 1));
+            strcat(enunciado_enviar, " | ");
+            c+=1;
+        } 
+    }
+    strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>> ");
+    sqlite3_finalize(res);
+}
