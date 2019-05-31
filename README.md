@@ -1,7 +1,5 @@
-Proyecto 1 - The Test - Principios de Sistemas Operativos
-
 ---------------------------------------
-	Proyecto 1 - The Test 
+	Proyecto 1 - The Test - Principios de Sistemas Operativos
 ---------------------------------------
 
 Implementación del Juego The Test (facebook messenger)
