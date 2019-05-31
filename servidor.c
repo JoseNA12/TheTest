@@ -316,7 +316,7 @@ void wizardCrearPregunta(){
 	char solicitarPuntaje[] = "Indique el puntaje de la pregunta \n>>> ";
 	char solicitarOpcion[] = "Indique una opción para la pregunta \n>>> ";
 	char solicitarNuevaOpcion[] = "Desea agregar una opción más? y/n \n>>> ";
-	char mensajeExito[] = "La pregunta ha sido creada correctamente \nIngrese cualquier tecla para continuar \n>>> ";
+	char mensajeExito[] = "La pregunta ha sido creada correctamente \n\nIngrese cualquier tecla para continuar \n>>> ";
 	char enunciado[size_buffer];
 	int puntaje;
 	struct Opcion *opciones = malloc(3*sizeof(struct Opcion));
@@ -410,7 +410,7 @@ void wizardDeletePregunta(){
 	int idPregunta;
 	char buffer_mp[10];
 	char solicitarIDPregunta[] = "\nIndique el identificador de pregunta \n>>> ";
-	char mensajeExito[] = "\nLa pregunta ha sido eliminada correctamente \nIngrese cualquier tecla para continuar \n>>> ";
+	char mensajeExito[] = "\nLa pregunta ha sido eliminada correctamente \n\nIngrese cualquier tecla para continuar \n>>> ";
 	send(newSocket, solicitarIDPregunta, strlen(solicitarIDPregunta), 0);
 	memset(buffer_mp, 0, 10);
 	recv(newSocket, buffer_mp, 10, 0);
@@ -453,33 +453,27 @@ void menuPreguntas(){
 		recv(newSocket, buffer_mp, SIZE_BUFF, 0);
 	}
 	else if (strcmp(buffer_mp, "3") == 0) { // mostrar preguntar
-		/*char preguntasActuales[20000];
-		char miBuffer[SIZE_BUFF];
-		memset(miBuffer, 0, SIZE_BUFF);
+		char preguntasActuales[20000];
+        char miBuffer[SIZE_BUFF];
+        memset(miBuffer, 0, SIZE_BUFF);
+        selectAllPregunta(preguntasActuales);
+        char *token = strtok(preguntasActuales, "$"); 
 
-		selectAllPregunta(preguntasActuales);
-
-		char *token = strtok(preguntasActuales, "$"); 
-
-		while (token != NULL) {
-			strcat(miBuffer, token);
-			strcat(miBuffer, Bold_Cyan "\nSiguiente pregunta ? (S/N): " Reset_Color);
-			send(newSocket, miBuffer, strlen(miBuffer), 0);
-			recv(newSocket, buffer_mp, size_buffer, 0);
-
-			if ((strcmp(buffer_mp, "n") == 0) || (strcmp(miBuffer, "N") == 0) ) {
-				break;
-			}
-
-			memset(miBuffer, 0, SIZE_BUFF); memset(buffer_mp, 0, 2);
-
-			token = strtok(NULL, "$");
-		}
-
-		strcat(enunciado_enviar, "\n\nPresione cualquier tecla para salir \n>>> ");
-		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
-		memset(buffer_mp, 0, size_buffer + 1);
-		recv(newSocket, buffer_mp, SIZE_BUFF, 0);*/
+        while (token != NULL) {
+            strcat(miBuffer, token);
+            strcat(miBuffer, Bold_Cyan "\nSiguiente pregunta ? (S/N): " Reset_Color);
+            send(newSocket, miBuffer, strlen(miBuffer), 0);
+            recv(newSocket, buffer_mp, size_buffer, 0);
+            if ((strcmp(buffer_mp, "n") == 0) || (strcmp(miBuffer, "N") == 0) ) 
+                break;
+            
+            memset(miBuffer, 0, SIZE_BUFF); memset(buffer_mp, 0, 2);
+            token = strtok(NULL, "$");
+        }
+        strcat(enunciado_enviar, "\n\nPresione cualquier tecla para salir \n>>> ");
+        send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
+        memset(buffer_mp, 0, size_buffer + 1);
+        recv(newSocket, buffer_mp, SIZE_BUFF, 0);
 	}
 	else if(strcmp(buffer_mp, "4") == 0) {
 		send(newSocket, menuGestionarPreguntas, strlen(menuGestionarPreguntas), 0);

@@ -666,15 +666,21 @@ void selectOpciones(int idPregunta, char* enunciado_enviar){
 }
 
 void selectAllPregunta(char* enunciado_enviar){
+    char temp[10];
     int idPregunta;
     bzero(enunciado_enviar, strlen(enunciado_enviar));
     strcat(enunciado_enviar, "\n" Bold_Yellow);
-	strcat(enunciado_enviar, "Preguntas almacenadas");
-	strcat(enunciado_enviar, Reset_Color);
+    strcat(enunciado_enviar, "Preguntas almacenadas");
+    strcat(enunciado_enviar, Reset_Color);
     int rc = setConnection("select p.idPregunta, p.enunciado, p.puntaje from pregunta p;");
     while((rc = sqlite3_step(res)) == SQLITE_ROW) {
         idPregunta = sqlite3_column_int(res, 0);
-        strcat(enunciado_enviar, "\nPregunta: ");
+        strcat(enunciado_enviar, Bold_Yellow"\n[");
+        memset(temp, 0, 10);
+        sprintf(temp, "%d", idPregunta); 
+        strcat(enunciado_enviar, temp);
+        strcat(enunciado_enviar, "] "Reset_Color);
+        strcat(enunciado_enviar, "Pregunta: ");
         strcat(enunciado_enviar, sqlite3_column_text(res, 1));
         strcat(enunciado_enviar, "\nPuntaje: ");
         strcat(enunciado_enviar, sqlite3_column_text(res, 2));
