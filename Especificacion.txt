@@ -48,12 +48,3 @@ Los usuarios irán avanzando en niveles según los puntos que vayan ganando en c
 + Si lo desea puede usar algún sistema tipo base de datos para almacenar la información de las preguntas, jugadores, puntos y respuestas; o bien puede usar archivos planos de texto, XML o similar y crear sus propia estructura de base de datos
 
 ----------------------------------------------
-
-Entrega : Lunes 13 de Mayo 
-Digital al correo: earias@ic-itcr.ac.cr
-Subject : SO - Proyecto 1 - The Test - SUS-NOMBRES-COMPLETOS
-
-Adjuntar los archivos de texto con su código fuente, un PDF con la documentación de todo su proyecto, estructura de los programas cliente y estructura del funcionamiento del servidor, explicando el trabajo de los hilos, las conexiones vía sockets, protocolo de mensajes desarrollado para sus comunicaciones, forma de administración y almacenamiento de la información, pruebas realizadas, etc. 
-
-Incluir en el correo el link al repositorio Git de su Proyecto, en el mismo debe verse el aporte de cada uno de los miembros de trabajo con sus commits y demás durante todo el desarrollo del Proyecto. 
-
