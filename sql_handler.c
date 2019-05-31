@@ -575,7 +575,7 @@ void ranking(char* enunciado_enviar){
     sqlite3_finalize(res);
 }
 
-int crearPregunta(char* enunciado, char* opcion1, char* opcion2, char* opcion3, int puntaje){
+void crearPregunta(char* enunciado, struct Opcion *opciones, int puntaje){
     int idPregunta;
     int rc = setConnection("INSERT INTO pregunta (enunciado, puntaje) values (?,?)");
     rc = sqlite3_bind_text(res, 1, enunciado, strlen(enunciado), 0);
@@ -586,26 +586,26 @@ int crearPregunta(char* enunciado, char* opcion1, char* opcion2, char* opcion3, 
     rc = setConnection("select last_insert_rowid() from Pregunta");
     if((rc = sqlite3_step(res)) == SQLITE_ROW) {
         idPregunta = sqlite3_column_int(res, 0);
-        insertOpcion(idPregunta, opcion1);
-        insertOpcion(idPregunta, opcion2);
-        if (opcion3!=""){
-            insertOpcion(idPregunta, opcion3);
-        }
+        sqlite3_finalize(res);
+        insertOpcion(idPregunta, opciones);
     }
-    sqlite3_finalize(res);
-    return 1;
 }
 
-void insertOpcion(int idPregunta, char* opcion){
-    int rc = setConnection("INSERT INTO [pregunta-respuesta] (idPregunta, respuesta) values (?,?);");
-    rc = sqlite3_bind_int(res, 1, idPregunta);
-    rc = sqlite3_bind_text(res, 2, opcion, strlen(opcion), 0);
-    if (rc != SQLITE_OK) {
-        printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
-        sqlite3_close(db);
-    } 
-	sqlite3_step(res);
-    sqlite3_finalize(res);
+void insertOpcion(int idPregunta, struct Opcion *opciones){
+    int rc;
+    for(int i=0; i < 3; i+=1){
+        if(strcmp(opciones[i].respuesta,"")==0)
+            break;
+        rc = setConnection("INSERT INTO [pregunta-respuesta] (idPregunta, respuesta) values (?,?);");
+        rc = sqlite3_bind_int(res, 1, idPregunta);
+        rc = sqlite3_bind_text(res, 2, opciones[i].respuesta, strlen(opciones[i].respuesta), 0);
+        if (rc != SQLITE_OK) {
+            printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
+            sqlite3_close(db);
+        } 
+        sqlite3_step(res);
+        sqlite3_finalize(res);
+    }
 }
 
 int comprobarUsoDePregunta(int idPregunta){
@@ -620,13 +620,11 @@ int comprobarUsoDePregunta(int idPregunta){
 }
 
 int updatePregunta(int idPregunta, char* enunciado, int puntaje){
-    char retornoBooleano[5];
-    int rc;
     if(comprobarUsoDePregunta(idPregunta)) {
         return -1;
     }
-    rc = setConnection("update pregunta set enunciado = ifnull(?,enunciado), puntaje = ifnull(?,puntaje) where idPregunta = ?"); 
-    if(enunciado==""){
+    int rc = setConnection("update pregunta set enunciado = ifnull(?,enunciado), puntaje = ifnull(?,puntaje) where idPregunta = ?"); 
+    if(strcmp(enunciado,"")==0){
         rc = sqlite3_bind_null(res,1);
     }else{
         rc = sqlite3_bind_text(res, 1, enunciado, strlen(enunciado), 0);
@@ -637,6 +635,7 @@ int updatePregunta(int idPregunta, char* enunciado, int puntaje){
         rc = sqlite3_bind_int(res, 2, puntaje);
     }
     rc = sqlite3_bind_int(res, 3, idPregunta);
+    sqlite3_step(res);
     sqlite3_finalize(res);
     return 1;
 }
@@ -683,6 +682,32 @@ void selectAllPregunta(char* enunciado_enviar){
         strcat(enunciado_enviar, "\n$");
     }
     sqlite3_finalize(res);
+}
+
+void getOpciones(int idPregunta, char* enunciado_enviar){
+    bzero(enunciado_enviar, strlen(enunciado_enviar));
+    strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "Opciones almacenadas");
+    strcat(enunciado_enviar, Reset_Color);
+    int rc = setConnection("SELECT pr.idPR, pr.respuesta FROM [pregunta-respuesta] pr where pr.idPregunta = ?;");
+    rc = sqlite3_bind_int(res, 1, idPregunta);
+    while((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        strcat(enunciado_enviar, "\n[");
+        strcat(enunciado_enviar, sqlite3_column_text(res, 0));
+        strcat(enunciado_enviar, "] ");
+        strcat(enunciado_enviar, sqlite3_column_text(res, 1));
+    }
+    strcat(enunciado_enviar, "\nIndique la opción que desea modificar \n>>> ");
+    sqlite3_finalize(res);
+}
+
+int updateOpcion(int idOpcion, char* enunciado){
+    int rc = setConnection("update [pregunta-respuesta] set respuesta = ? where idPR = ?;"); 
+    rc = sqlite3_bind_text(res, 1, enunciado, strlen(enunciado), 0);
+    rc = sqlite3_bind_int(res, 2, idOpcion);
+    sqlite3_step(res);
+    sqlite3_finalize(res);
+    return 1;
 }
 
 

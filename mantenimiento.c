@@ -58,7 +58,17 @@ int crearClienteMantenimiento() {
 	else {
 		while (1) {
 			printf("%s", buffer);
-			scanf("%s", &buffer[0]);
+			//scanf("%s", &buffer[0]);
+			char caracter = '0';
+			short i = 0;
+			setbuf(stdin, NULL);
+			while(caracter != '\n') {    // termina de leer la entrada de datos
+				caracter = getchar();
+				if (caracter == '\n') { break; }
+				buffer[i] = caracter;
+				i++;
+			}
+			buffer[i] = '\0';
 			send(clientSocket, buffer, strlen(buffer), 0);
 			bzero(buffer, sizeof(buffer)); // Borrar buffer
 			l_brinco_magico:

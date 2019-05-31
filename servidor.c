@@ -35,7 +35,7 @@ char LOGIN_USER[] = "\n[The Test] -> Usuario: ";
 char LOGIN_PASS[] = "[The Test] -> Contraseña: ";
 char LOGIN_EMAIL[] = "[The Test] -> Correo: ";
 char QUESTION_REGISTER_USER[] = "\nDesea continuar?\n[1] - Si\n[2] - No\n>>> ";
-char USER_REQUEST[] = "\n\nIngrese el nombre del jugador para jugar\n>>> ";
+char USER_REQUEST[] = "\nIngrese el nombre del jugador para jugar\n>>> ";
 char MSJ_REGISTER_USER_1[] = Bold_Green "\nSe ha registrado el usuario!" Reset_Color;
 char MSJ_REGISTER_USER_2[] = Bold_Red "\nEl nombre de usuario indicado se encuentra en uso!\n" Reset_Color;
 char MSJ_REGISTER_USER_3[] = Bold_Red "\nSe ha producido un error al registrar el jugador!\n" Reset_Color;
@@ -53,7 +53,8 @@ char menuJugador_c[] = "\n\t\t" Bold_Blue " The Test - Menú \n" CYAN"[1]"Reset_
 char menuMantenimiento[] = "\n\t\t" Bold_Yellow "The Test - Mantenimiento \n" CYAN"[1]"Reset_Color" - Juegos activos\n" CYAN"[2]"Reset_Color" - Jugadores registrados\n" CYAN"[3]"Reset_Color" - Preguntas\n" CYAN"[4]"Reset_Color" - Ranking\n" CYAN"[5]"Reset_Color" - Salir\n>>> ";
 char menuEstadisticasPreguntas_c[] = "\n\t\t" Bold_Blue " Preguntas \n" CYAN"[1]"Reset_Color" - Estadisticas generales\n" CYAN"[2]"Reset_Color" - Estadisticas por pregunta\n" CYAN"[3]"Reset_Color" - Ver todas las preguntas\n" CYAN"[4]"Reset_Color" - Gestionar preguntas\n" CYAN"[5]"Reset_Color" - Salir\n>>> ";
 char menuEstadisticasPreguntaIndividual_c[] = "\n\t\t" Bold_Blue " Estadísticas por pregunta \n" CYAN"[1]"Reset_Color" - Correctas \n" CYAN"[2]"Reset_Color" - Incorrectas \n" CYAN"[3]"Reset_Color" - Salir\n>>> ";
-char menuGestionarPreguntas[] = "\n\t\t" Bold_Blue " Gestionar preguntas \n" CYAN"[1]"Reset_Color" - Crear pregunta \n" CYAN"[2]"Reset_Color" - Modificar pregunta \n" CYAN"[3]"Reset_Color" - Eliminar pregunta \n" CYAN"[3]"Reset_Color" - Salir \n>>> ";
+char menuGestionarPreguntas[] = "\n\t\t" Bold_Blue " Gestionar preguntas \n" CYAN"[1]"Reset_Color" - Crear pregunta \n" CYAN"[2]"Reset_Color" - Modificar pregunta \n" CYAN"[3]"Reset_Color" - Eliminar pregunta \n" CYAN"[4]"Reset_Color" - Salir\n>>> ";
+
 int newSocket;
 
 int sockfd, ret;
@@ -127,10 +128,10 @@ void responder_nuevasPreguntas(int idJugadorActual, int idPartida) {
 
 	for(int i=0; 2>i; i+=1){
 		preguntaUtilizadas = armarTuplaPreguntadasUsadas(idPartida);
-		//printf("*********************Pregunta nueva*********************\n");
-		//printf("La tupla armada es: %s\n",preguntaUtilizadas);
+		printf("*********************Pregunta nueva*********************\n");
+		printf("La tupla armada es: %s\n",preguntaUtilizadas);
 		pregunta = getPregunta(preguntaUtilizadas);
-		//printf("La pregunta conseguida es: %d \n",pregunta->idPregunta);
+		printf("La pregunta conseguida es: %d \n",pregunta->idPregunta);
 
 		send(newSocket, SEND_PREGUNTA, SIZE_BUFF, 0); // pido que ingrese el usuario
 		recv(newSocket, buffer_rnp, sizeof(buffer_rnp), 0);
@@ -219,7 +220,7 @@ void responder_preguntas_oponente(int idJugadorActual, int idPartida) {
  	free(partida);
  	//---
 
-	//puts(respuesta_oponente);
+	puts(respuesta_oponente);
 
 	send(newSocket, RECEIVE_OPCIONES, strlen(RECEIVE_OPCIONES), 0);
 	recv(newSocket, buffer_rpo, sizeof(buffer_rpo), 0);
@@ -307,6 +308,119 @@ void estadisticasPreguntasGenerales(char* enunciado_enviar){
 }
 
 
+void wizardCrearPregunta(){
+	int size_buffer = 2000;
+	int indice = 0;
+	char buffer_mp[size_buffer];
+	char solicitarEnunciado[] = "Indique el enunciado de la pregunta \n>>> ";
+	char solicitarPuntaje[] = "Indique el puntaje de la pregunta \n>>> ";
+	char solicitarOpcion[] = "Indique una opción para la pregunta \n>>> ";
+	char solicitarNuevaOpcion[] = "Desea agregar una opción más? y/n \n>>> ";
+	char mensajeExito[] = "La pregunta ha sido creada correctamente \nIngrese cualquier tecla para continuar \n>>> ";
+	char enunciado[size_buffer];
+	int puntaje;
+	struct Opcion *opciones = malloc(3*sizeof(struct Opcion));
+
+	send(newSocket, solicitarEnunciado, strlen(solicitarEnunciado), 0);
+	recv(newSocket, enunciado, size_buffer, 0);
+
+	send(newSocket, solicitarPuntaje, strlen(solicitarPuntaje), 0);
+	recv(newSocket, buffer_mp, size_buffer, 0);
+	puntaje = atoi(buffer_mp);
+
+	while(indice < 3){
+		if(indice == 2){
+			send(newSocket, solicitarNuevaOpcion, strlen(solicitarNuevaOpcion), 0);
+			memset(buffer_mp, 0, size_buffer + 1);
+			recv(newSocket, buffer_mp, size_buffer, 0);
+			if(strcmp(buffer_mp,"n")==0)
+				break;
+		}
+		send(newSocket, solicitarOpcion, strlen(solicitarOpcion), 0);
+		memset(buffer_mp, 0, size_buffer + 1);
+		recv(newSocket, buffer_mp, size_buffer, 0);
+		strcat(opciones[indice].respuesta, buffer_mp); 
+		indice+=1;
+	}
+	crearPregunta(enunciado,opciones,puntaje);
+	send(newSocket, mensajeExito, strlen(mensajeExito), 0);
+	memset(buffer_mp, 0, size_buffer + 1);
+	recv(newSocket, buffer_mp, size_buffer, 0);
+}
+
+void wizardModOpciones(int idPregunta){
+	char solicitarOpcion[] = "\nIndique la nueva opción \n>>>";
+	char buffer_mp[2000];
+	int idOpcion;
+	getOpciones( idPregunta, buffer_mp);
+	send(newSocket, buffer_mp, strlen(buffer_mp), 0);
+	bzero(buffer_mp, strlen(buffer_mp));
+	recv(newSocket, buffer_mp, SIZE_BUFF, 0); 
+	idOpcion = atoi(buffer_mp);
+
+	send(newSocket, solicitarOpcion, strlen(solicitarOpcion), 0);
+	bzero(buffer_mp, strlen(buffer_mp));
+	recv(newSocket, buffer_mp, SIZE_BUFF, 0);
+	updateOpcion(idOpcion, buffer_mp);
+}
+
+void wizardModEnunciadoPregunta(int idPregunta){
+	char solicitarEnunciado[] = "Indique el nuevo enunciado \n>>>";
+	char buffer_mp[2000];
+	send(newSocket, solicitarEnunciado, strlen(solicitarEnunciado), 0);
+	bzero(buffer_mp, strlen(buffer_mp));
+	recv(newSocket, buffer_mp, sizeof(buffer_mp), 0); 
+	printf("recibido %s",buffer_mp);
+	updatePregunta(idPregunta, buffer_mp, -1);
+}
+
+void wizardModPuntajePregunta(int idPregunta){
+	char solicitarPuntaje[] = "Indique el nuevo puntaje \n>>>";
+	char buffer_mp[10];
+	send(newSocket, solicitarPuntaje, strlen(solicitarPuntaje), 0);
+	bzero(buffer_mp, strlen(buffer_mp));
+	recv(newSocket, buffer_mp, sizeof(buffer_mp), 0); 
+	updatePregunta(idPregunta, "", atoi(buffer_mp));
+}
+
+void wizardModPregunta(){
+	int idPregunta;
+	char buffer_mp[2];
+	char solicitarIDPregunta[] = "\nIndique el identificador de pregunta \n>>> ";
+	char menuModPreguntas[] = "\n\t\t" Bold_Blue " Modificar pregunta \n" CYAN"[1]"Reset_Color" - Enunciado \n" CYAN"[2]"Reset_Color" - Opciones \n" CYAN"[3]"Reset_Color" - Puntaje \n" CYAN"[4]"Reset_Color" - Salir \n>>> ";
+	send(newSocket, solicitarIDPregunta, strlen(solicitarIDPregunta), 0);
+	memset(buffer_mp, 0, 2);
+	recv(newSocket, buffer_mp, 2, 0);
+	idPregunta = atoi(buffer_mp);
+	send(newSocket, menuModPreguntas, strlen(menuModPreguntas), 0);
+	memset(buffer_mp, 0, 2);
+	recv(newSocket, buffer_mp, 2, 0);
+	if (strcmp(buffer_mp, "1") == 0) { // Modificar enunciado
+		wizardModEnunciadoPregunta(idPregunta);
+	}
+	else if(strcmp(buffer_mp, "2") == 0) { // Modificar opciones
+		wizardModOpciones(idPregunta);
+	}
+	else if(strcmp(buffer_mp, "3") == 0) { // Modificar puntaje
+		wizardModPuntajePregunta(idPregunta);
+	}
+}
+
+void wizardDeletePregunta(){
+	int idPregunta;
+	char buffer_mp[10];
+	char solicitarIDPregunta[] = "\nIndique el identificador de pregunta \n>>> ";
+	char mensajeExito[] = "\nLa pregunta ha sido eliminada correctamente \nIngrese cualquier tecla para continuar \n>>> ";
+	send(newSocket, solicitarIDPregunta, strlen(solicitarIDPregunta), 0);
+	memset(buffer_mp, 0, 10);
+	recv(newSocket, buffer_mp, 10, 0);
+	idPregunta = atoi(buffer_mp);
+	deletePregunta(idPregunta);
+	send(newSocket, mensajeExito, strlen(mensajeExito), 0);
+	memset(buffer_mp, 0, 10 + 1);
+	recv(newSocket, buffer_mp, 10, 0);
+}
+
 /*
 Parte del cliente de mantenimiento.
 Muestra datos de las preguntas registadas en la base de datos
@@ -339,7 +453,7 @@ void menuPreguntas(){
 		recv(newSocket, buffer_mp, SIZE_BUFF, 0);
 	}
 	else if (strcmp(buffer_mp, "3") == 0) { // mostrar preguntar
-		char preguntasActuales[20000];
+		/*char preguntasActuales[20000];
 		char miBuffer[SIZE_BUFF];
 		memset(miBuffer, 0, SIZE_BUFF);
 
@@ -365,21 +479,20 @@ void menuPreguntas(){
 		strcat(enunciado_enviar, "\n\nPresione cualquier tecla para salir \n>>> ");
 		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
 		memset(buffer_mp, 0, size_buffer + 1);
-		recv(newSocket, buffer_mp, SIZE_BUFF, 0);
+		recv(newSocket, buffer_mp, SIZE_BUFF, 0);*/
 	}
 	else if(strcmp(buffer_mp, "4") == 0) {
 		send(newSocket, menuGestionarPreguntas, strlen(menuGestionarPreguntas), 0);
 		memset(buffer_mp, 0, size_buffer + 1);
 		recv(newSocket, buffer_mp, size_buffer, 0);
-
 		if (strcmp(buffer_mp, "1") == 0) { // crear pregunta
-			
+			wizardCrearPregunta();
 		}
 		else if (strcmp(buffer_mp, "2") == 0) { // modificar pregunta
-			
+			wizardModPregunta();
 		}
-		else if (strcmp(buffer_mp, "3") == 0) { // eliminar pregunta
-
+		else if (strcmp(buffer_mp, "3") == 0) { 
+			wizardDeletePregunta();
 		}
 	}
 }
@@ -538,12 +651,10 @@ void gestionClienteMantenimiento() {
 	char enunciado_enviar[SIZE_BUFF];
 	int size_buffer = 1;
 	char buffer_me[size_buffer]; memset(buffer_me, 0, size_buffer + 1);
-
 	while (1) {
 		send(newSocket, menuMantenimiento, strlen(menuMantenimiento), 0); // envio el menu
 		memset(buffer_me, 0, size_buffer + 1);
 		recv(newSocket, buffer_me, size_buffer, 0);
-
 		if (strcmp(buffer_me, "1") == 0) { // jugadores en estado activo
 			jugadoresEnJuegoActivo(enunciado_enviar);
 			send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
