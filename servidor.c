@@ -49,10 +49,11 @@ char MSJ_NIVEL_PARTIDA[] = CYAN "\nNivel: " Reset_Color;
 char MSJ_PUNTOS_PARTIDA[] = CYAN ", puntos: " Reset_Color;
 
 char menuInicio_c[] = "\n\t\t" Bold_Blue " The Test - Inicio \n" CYAN"[1]"Reset_Color" - Iniciar sesión\n" CYAN"[2]"Reset_Color" - Registrarse\n" CYAN"[3]"Reset_Color" - Salir\n>>> ";
-char menuJugador_c[] = "\n\t\t" Bold_Blue " The Test - Menú \n" CYAN"[1]"Reset_Color" - Seleccionar jugador\n" CYAN"[2]"Reset_Color" - Estado del servidor\n" CYAN"[3]"Reset_Color" - Cerrar sesión\n>>> ";
-char menuEstadisticas_c[] = "\n\t\t" Bold_Blue " Estado del servidor \n" CYAN"[1]"Reset_Color" - Juegos activos\n" CYAN"[2]"Reset_Color" - Jugadores registrados\n" CYAN"[3]"Reset_Color" - Preguntas\n" CYAN"[4]"Reset_Color" - Ranking\n" CYAN"[5]"Reset_Color" - Salir\n>>> ";
-char menuEstadisticasPreguntas_c[] = "\n\t\t" Bold_Blue " Preguntas \n" CYAN"[1]"Reset_Color" - Estadisticas generales\n" CYAN"[2]"Reset_Color" - Estadisticas por pregunta\n" CYAN"[3]"Reset_Color" - Salir\n>>> ";
+char menuJugador_c[] = "\n\t\t" Bold_Blue " The Test - Menú \n" CYAN"[1]"Reset_Color" - Seleccionar jugador\n" /*CYAN"[2]"Reset_Color" - Estado del servidor\n"*/ CYAN"[2]"Reset_Color" - Cerrar sesión\n>>> ";
+char menuMantenimiento[] = "\n\t\t" Bold_Yellow "The Test - Mantenimiento \n" CYAN"[1]"Reset_Color" - Juegos activos\n" CYAN"[2]"Reset_Color" - Jugadores registrados\n" CYAN"[3]"Reset_Color" - Preguntas\n" CYAN"[4]"Reset_Color" - Ranking\n" CYAN"[5]"Reset_Color" - Salir\n>>> ";
+char menuEstadisticasPreguntas_c[] = "\n\t\t" Bold_Blue " Preguntas \n" CYAN"[1]"Reset_Color" - Estadisticas generales\n" CYAN"[2]"Reset_Color" - Estadisticas por pregunta\n" CYAN"[3]"Reset_Color" - Ver todas las preguntas\n" CYAN"[4]"Reset_Color" - Gestionar preguntas\n" CYAN"[5]"Reset_Color" - Salir\n>>> ";
 char menuEstadisticasPreguntaIndividual_c[] = "\n\t\t" Bold_Blue " Estadísticas por pregunta \n" CYAN"[1]"Reset_Color" - Correctas \n" CYAN"[2]"Reset_Color" - Incorrectas \n" CYAN"[3]"Reset_Color" - Salir\n>>> ";
+char menuGestionarPreguntas[] = "\n\t\t" Bold_Blue " Gestionar preguntas \n" CYAN"[1]"Reset_Color" - Crear pregunta \n" CYAN"[2]"Reset_Color" - Modificar pregunta \n" CYAN"[3]"Reset_Color" - Eliminar pregunta \n" CYAN"[3]"Reset_Color" - Salir \n>>> ";
 int newSocket;
 
 int sockfd, ret;
@@ -126,10 +127,13 @@ void responder_nuevasPreguntas(int idJugadorActual, int idPartida) {
 
 	for(int i=0; 2>i; i+=1){
 		preguntaUtilizadas = armarTuplaPreguntadasUsadas(idPartida);
+		//printf("*********************Pregunta nueva*********************\n");
+		//printf("La tupla armada es: %s\n",preguntaUtilizadas);
 		pregunta = getPregunta(preguntaUtilizadas);
-		
-		send(newSocket, SEND_PREGUNTA, SIZE_BUFF, 0); // pido que ingrese el usuario
+		//printf("La pregunta conseguida es: %d \n",pregunta->idPregunta);
 
+		send(newSocket, SEND_PREGUNTA, SIZE_BUFF, 0); // pido que ingrese el usuario
+		recv(newSocket, buffer_rnp, sizeof(buffer_rnp), 0);
 		char enunciado_enviar[SIZE_BUFF];
 		formatoPregunta(enunciado_enviar, pregunta, &maximoOpciones);
 		
@@ -163,7 +167,7 @@ void responder_preguntas_oponente(int idJugadorActual, int idPartida) {
 
 	for(int i=0; 2>i; i+=1){
 		send(newSocket, SEND_PREGUNTA, SIZE_BUFF, 0); // pido que ingrese el usuario
-
+		recv(newSocket, buffer_rpo, sizeof(buffer_rpo), 0);
 		formatoPregunta(enunciado_enviar, &preguntas[i], &maximoOpciones);
 
 		l_opcion_pregunta:
@@ -215,14 +219,19 @@ void responder_preguntas_oponente(int idJugadorActual, int idPartida) {
  	free(partida);
  	//---
 
-	puts(respuesta_oponente);
+	//puts(respuesta_oponente);
 
 	send(newSocket, RECEIVE_OPCIONES, strlen(RECEIVE_OPCIONES), 0);
+	recv(newSocket, buffer_rpo, sizeof(buffer_rpo), 0);
 	send(newSocket, respuesta_oponente, SIZE_BUFF, 0);
-	//bzero(buffer_rpo, sizeof(buffer_rpo));
+	bzero(buffer_rpo, sizeof(buffer_rpo));
 }
 
-
+/*
+Dar inicio a una partida de The Test.
+Si no existe una partida entre 2 usuarios, se crea dicha partida
+Sino, se continua la partida retomando el proceso anteriormente jugado
+*/
 void jugarPartida(char usuario_login[]) {
 	struct Partida *partida; 
 	partida = malloc(sizeof(struct Partida));
@@ -254,6 +263,7 @@ void jugarPartida(char usuario_login[]) {
 			}
 			else { // Turno del rival. Osea que el mae actual se pone a esperar. 
 				send(newSocket, REGISTER, strlen(REGISTER), 0);
+				recv(newSocket, buffer_jp, SIZE_BUFF, 0);
 				send(newSocket, MSJ_USER_1, SIZE_BUFF, 0); // msj diciendo que tiene que esperar
 			}
 		}
@@ -263,52 +273,60 @@ void jugarPartida(char usuario_login[]) {
 	}
 	else {
 		send(newSocket, REGISTER, strlen(REGISTER), 0);
+		recv(newSocket, buffer_jp, SIZE_BUFF, 0);
 		send(newSocket, MSJ_ERROR_1, SIZE_BUFF, 0);
 	}
 }
 
-void menuPreguntas(){
-	char enunciado_enviar[SIZE_BUFF];
+
+void estadisticasPreguntasGenerales(char* enunciado_enviar){
 	int cantPreguntas, cantCorrectas, cantIncorrectas;
 	char temp[10];
+	memset(enunciado_enviar, 0, SIZE_BUFF);
+
+	strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "\nEstadísticas Generales: ");
+	strcat(enunciado_enviar, Reset_Color);
+
+	cantPreguntas = numeroPreguntas();
+	cantCorrectas = numeroPreguntasPorEstado(1);
+	cantIncorrectas = numeroPreguntasPorEstado(0);
+
+	strcat(enunciado_enviar, "\nCantidad de preguntas almacenadas: ");
+	sprintf(temp, "%d", cantPreguntas); 
+	strcat(enunciado_enviar, temp);
+	memset(temp, 0, 10);
+	strcat(enunciado_enviar, "\nCantidad de preguntas respondidas correctamente: ");
+	sprintf(temp, "%d", cantCorrectas); 
+	strcat(enunciado_enviar, temp);
+	memset(temp, 0, 10);
+	strcat(enunciado_enviar, "\nCantidad de preguntas respondidas incorrectamente: ");
+	sprintf(temp, "%d", cantIncorrectas); 
+	strcat(enunciado_enviar, temp);
+	strcat(enunciado_enviar, "\n\nPresione cualquier tecla para salir \n>>> ");
+}
+
+
+/*
+Parte del cliente de mantenimiento.
+Muestra datos de las preguntas registadas en la base de datos
+*/
+void menuPreguntas(){
+	char enunciado_enviar[SIZE_BUFF];
 	int size_buffer = 1;
 	char buffer_mp[size_buffer]; memset(buffer_mp, 0, size_buffer + 1);
-	send(newSocket, menuEstadisticasPreguntas_c, 165, 0); 
-	//bzero(buffer, sizeof(buffer));
+	send(newSocket, menuEstadisticasPreguntas_c, strlen(menuEstadisticasPreguntas_c), 0); 
 	recv(newSocket, buffer_mp, size_buffer, 0); 
+
 	if (strcmp(buffer_mp, "1") == 0) { // Estadisticas generales
-		memset(enunciado_enviar, 0, SIZE_BUFF + 1);
-	    //bzero(enunciado_enviar, sizeof(enunciado_enviar));
-		strcat(enunciado_enviar, "\n" Bold_Yellow);
-		strcat(enunciado_enviar, "\nEstadísticas Generales: ");
-		strcat(enunciado_enviar, Reset_Color);
-
-		cantPreguntas = numeroPreguntas();
-		cantCorrectas = numeroPreguntasPorEstado(1);
-		cantIncorrectas = numeroPreguntasPorEstado(0);
-
-		strcat(enunciado_enviar, "\nCantidad de preguntas almacenadas: ");
-		sprintf(temp, "%d", cantPreguntas); 
-		strcat(enunciado_enviar, temp);
-		memset(temp, 0, 10);
-		strcat(enunciado_enviar, "\nCantidad de preguntas respondidas correctamente: ");
-		sprintf(temp, "%d", cantCorrectas); 
-		strcat(enunciado_enviar, temp);
-		memset(temp, 0, 10);
-		strcat(enunciado_enviar, "\nCantidad de preguntas respondidas incorrectamente: ");
-		sprintf(temp, "%d", cantIncorrectas); 
-		strcat(enunciado_enviar, temp);
-		strcat(enunciado_enviar, "\n\nPresione cualquier tecla para salir \n>>> ");
-		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
+		estadisticasPreguntasGenerales(enunciado_enviar);
+		send(newSocket, enunciado_enviar, strlen(enunciado_enviar), 0);
 		memset(buffer_mp, 0, size_buffer + 1);
-		//bzero(buffer_mp, sizeof(buffer_mp));
 		recv(newSocket, buffer_mp, SIZE_BUFF, 0);
-		//bzero(buffer_mp, sizeof(buffer_mp));
 	}
 	else if (strcmp(buffer_mp, "2") == 0) { // Estadisticas por pregunta
-		send(newSocket, menuEstadisticasPreguntaIndividual_c, 165, 0);
+		send(newSocket, menuEstadisticasPreguntaIndividual_c, strlen(menuEstadisticasPreguntaIndividual_c), 0);
 		memset(buffer_mp, 0, size_buffer + 1);
-		//bzero(buffer_mp, sizeof(buffer_mp));
 		recv(newSocket, buffer_mp, size_buffer, 0); 
 		if(strcmp(buffer_mp, "1") == 0) {
 			estadisticasPorPregunta(enunciado_enviar,1);
@@ -318,42 +336,247 @@ void menuPreguntas(){
 		strcat(enunciado_enviar, "\n\nPresione cualquier tecla para salir \n>>> ");
 		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
 		memset(buffer_mp, 0, size_buffer + 1);
-		//bzero(buffer_mp, sizeof(buffer_mp));
 		recv(newSocket, buffer_mp, SIZE_BUFF, 0);
+	}
+	else if (strcmp(buffer_mp, "3") == 0) { // mostrar preguntar
+		char preguntasActuales[20000];
+		char miBuffer[SIZE_BUFF];
+		memset(miBuffer, 0, SIZE_BUFF);
+
+		selectAllPregunta(preguntasActuales);
+
+		char *token = strtok(preguntasActuales, "$"); 
+
+		while (token != NULL) {
+			strcat(miBuffer, token);
+			strcat(miBuffer, Bold_Cyan "\nSiguiente pregunta ? (S/N): " Reset_Color);
+			send(newSocket, miBuffer, strlen(miBuffer), 0);
+			recv(newSocket, buffer_mp, size_buffer, 0);
+
+			if ((strcmp(buffer_mp, "n") == 0) || (strcmp(miBuffer, "N") == 0) ) {
+				break;
+			}
+
+			memset(miBuffer, 0, SIZE_BUFF); memset(buffer_mp, 0, 2);
+
+			token = strtok(NULL, "$");
+		}
+
+		strcat(enunciado_enviar, "\n\nPresione cualquier tecla para salir \n>>> ");
+		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
+		memset(buffer_mp, 0, size_buffer + 1);
+		recv(newSocket, buffer_mp, SIZE_BUFF, 0);
+	}
+	else if(strcmp(buffer_mp, "4") == 0) {
+		send(newSocket, menuGestionarPreguntas, strlen(menuGestionarPreguntas), 0);
+		memset(buffer_mp, 0, size_buffer + 1);
+		recv(newSocket, buffer_mp, size_buffer, 0);
+
+		if (strcmp(buffer_mp, "1") == 0) { // crear pregunta
+			
+		}
+		else if (strcmp(buffer_mp, "2") == 0) { // modificar pregunta
+			
+		}
+		else if (strcmp(buffer_mp, "3") == 0) { // eliminar pregunta
+
+		}
 	}
 }
 
-void menuEstadisticas(){
+/*
+Función encargada de manejar toda petición por parte de 
+un cliente jugador
+*/
+void gestionClienteJugador() {
+	char buffer[SIZE_BUFF]; memset(buffer, 0, SIZE_BUFF);
+	char usuario_login[50];
+	char pass_login[50];
+	char email_user[50];
+
+	l_menu_inicio:
+		send(newSocket, menuInicio_c, 165, 0); // mostrar menu inicio
+		memset(buffer, 0, SIZE_BUFF + 1);
+		//bzero(buffer, sizeof(buffer));
+		recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
+
+		if (strcmp(buffer, "1") == 0) {
+			goto l_login_jugador;
+		}
+		else if (strcmp(buffer, "2") == 0) { // registrar usuario
+			goto l_registrar_jugador;
+		}
+		else if (strcmp(buffer, "3") == 0) {
+			send(newSocket, SALIR, SIZE_BUFF, 0);
+			printf("Desconexión de " Bold_Red "%s:%d\n" Reset_Color, inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+			close(newSocket);
+		}
+		else {
+			goto l_menu_inicio;
+		}
+
+	l_login_jugador:			
+		send(newSocket, LOGIN_USER, strlen(LOGIN_USER), 0); // pido que ingrese el usuario
+
+		memset(buffer, 0, SIZE_BUFF + 1);
+		//bzero(buffer, sizeof(buffer));
+		recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
+
+		strcpy(usuario_login, buffer); // guardo el nombre de usuario
+
+		memset(buffer, 0, SIZE_BUFF + 1);
+		//bzero(buffer, sizeof(buffer));
+		send(newSocket, LOGIN_PASS, strlen(LOGIN_PASS), 0); // pido que ingrese la contraseña
+		
+		memset(buffer, 0, SIZE_BUFF + 1);
+		//bzero(buffer, sizeof(buffer));
+		recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
+
+		strcpy(pass_login, buffer); // guardo la contraseña
+		//bzero(buffer, sizeof(buffer));
+		memset(buffer, 0, SIZE_BUFF + 1);
+		
+		struct Jugador *jugadorNuevo;
+		jugadorNuevo = iniciarSesion(usuario_login,pass_login);
+		
+		if (jugadorNuevo->idJugador > 0) {
+			send(newSocket, LOGIN, SIZE_BUFF, 0); // le envio su ID al cliente
+			recv(newSocket, buffer, SIZE_BUFF, 0);
+			memset(buffer, 0, SIZE_BUFF + 1);
+			send(newSocket, jugadorNuevo, sizeof(struct Jugador)+1, 0); 
+			recv(newSocket, buffer, SIZE_BUFF, 0);
+
+			while (1) {
+				send(newSocket, menuJugador_c, SIZE_BUFF, 0);
+				//bzero(buffer, sizeof(buffer));
+				memset(buffer, 0, SIZE_BUFF + 1);
+				recv(newSocket, buffer, SIZE_BUFF, 0); // recibo alguna opcion del menu
+
+				if (strcmp(buffer, "1") == 0) {
+					jugarPartida(usuario_login);
+					memset(buffer, 0, SIZE_BUFF + 1);
+					//bzero(buffer, sizeof(buffer));							
+				}
+				/*else if(strcmp(buffer, "2") == 0) { // Estado del servidor
+					send(newSocket, menuEstadisticas_c, 200, 0); 
+					memset(buffer, 0, SIZE_BUFF + 1);
+					//bzero(buffer, sizeof(buffer));
+					menuEstadisticas();
+					
+				}*/
+				else if(strcmp(buffer, "2") == 0) { // cerrar sesion
+					printf(CYAN"%s"Reset_Color": ha cerrado sesión\n", jugadorNuevo->nombreUsuario);
+					free(jugadorNuevo);
+					goto l_menu_inicio;
+				}
+			}
+		}
+		else {
+			memset(usuario_login, 0, strlen(usuario_login) + 1);
+			memset(pass_login, 0, strlen(pass_login) + 1);
+			//bzero(usuario_login, sizeof(usuario_login));
+			//bzero(pass_login, sizeof(pass_login));
+			goto l_menu_inicio;
+		}
+
+	l_registrar_jugador:
+		send(newSocket, LOGIN_USER, strlen(LOGIN_USER), 0); // pido que ingrese el usuario
+		
+		bzero(buffer, sizeof(buffer));
+		recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
+		strcpy(usuario_login, buffer); // guardo el nombre de usuario
+
+		send(newSocket, LOGIN_PASS, strlen(LOGIN_PASS), 0); // pido que ingrese el usuario
+		
+		bzero(buffer, sizeof(buffer));
+		recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
+		strcpy(pass_login, buffer); // guardo la contraseña
+
+		send(newSocket, LOGIN_EMAIL, strlen(LOGIN_EMAIL), 0); // pido que ingrese el usuario
+		
+		bzero(buffer, sizeof(buffer));
+		recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
+		strcpy(email_user, buffer); // guardo el correo
+
+		//send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar 
+		send(newSocket, QUESTION_REGISTER_USER, strlen(QUESTION_REGISTER_USER), 0); // envio mensaje de confirmación
+		bzero(buffer, sizeof(buffer));				
+		recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
+		
+		if (strcmp(buffer, "1") == 0) {
+			
+			send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar
+			recv(newSocket, buffer, SIZE_BUFF, 0);
+			int resp = registrarUsuario(usuario_login, pass_login, email_user);
+			
+			if (resp == 1) { // registro completado
+				send(newSocket, MSJ_REGISTER_USER_1, strlen(MSJ_REGISTER_USER_1) + 14, 0); // +14 de los colores
+				printf("Se ha registrado un nuevo usuario: " Bold_Yellow "%s\n" Reset_Color, usuario_login);
+			}
+			else if (resp == 0) { // usuario ingresado en uso
+				send(newSocket, MSJ_REGISTER_USER_2, strlen(MSJ_REGISTER_USER_2) + 13, 0);
+			}
+			else { // error
+				send(newSocket, MSJ_REGISTER_USER_3, strlen(MSJ_REGISTER_USER_3) + 13, 0);
+			}
+		}
+		else {
+			send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar
+			recv(newSocket, buffer, SIZE_BUFF, 0);
+			send(newSocket, MSJ_REGISTER_USER_4, strlen(MSJ_REGISTER_USER_3) + 13, 0);					
+		}
+		bzero(buffer, sizeof(buffer));
+		goto l_menu_inicio;
+}
+
+/*
+Función encargada de manejar toda petición por parte de
+un cliente de mantenimiento
+*/
+void gestionClienteMantenimiento() {
+	char buffer[SIZE_BUFF]; memset(buffer, 0, SIZE_BUFF);
 	char enunciado_enviar[SIZE_BUFF];
 	int size_buffer = 1;
 	char buffer_me[size_buffer]; memset(buffer_me, 0, size_buffer + 1);
-	recv(newSocket, buffer_me, size_buffer, 0);
 
-	if (strcmp(buffer_me, "1") == 0) {
-		jugadoresEnJuegoActivo(enunciado_enviar);
-		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0); // mostrar menu inicio
-		bzero(buffer_me, sizeof(buffer_me));
-		recv(newSocket, buffer_me, SIZE_BUFF, 0); // lo recibo
-	}
-	else if(strcmp(buffer_me, "2") == 0) { 
-		jugadoresRegistrados(enunciado_enviar);
-		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0); // mostrar menu inicio
-		bzero(buffer_me, sizeof(buffer_me));
-		recv(newSocket, buffer_me, SIZE_BUFF, 0); // lo recibo
-	}
-	else if(strcmp(buffer_me, "3") == 0) {
-		menuPreguntas();
-	}
-	else if(strcmp(buffer_me, "4") == 0) {
-		ranking(enunciado_enviar);
-		send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0); // mostrar menu inicio
-		bzero(buffer_me, sizeof(buffer_me));
-		recv(newSocket, buffer_me, SIZE_BUFF, 0); // lo recibo
+	while (1) {
+		send(newSocket, menuMantenimiento, strlen(menuMantenimiento), 0); // envio el menu
+		memset(buffer_me, 0, size_buffer + 1);
+		recv(newSocket, buffer_me, size_buffer, 0);
+
+		if (strcmp(buffer_me, "1") == 0) { // jugadores en estado activo
+			jugadoresEnJuegoActivo(enunciado_enviar);
+			send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
+			bzero(buffer_me, sizeof(buffer_me));
+			recv(newSocket, buffer_me, SIZE_BUFF, 0); // lo recibo
+		}
+		else if(strcmp(buffer_me, "2") == 0) { // jugadores registrados
+			jugadoresRegistrados(enunciado_enviar);
+			send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
+			bzero(buffer_me, sizeof(buffer_me));
+			recv(newSocket, buffer_me, SIZE_BUFF, 0); // lo recibo
+		}
+		else if(strcmp(buffer_me, "3") == 0) { // menu de preguntas
+			menuPreguntas();
+		}
+		else if(strcmp(buffer_me, "4") == 0) { // ranking de partidas activas
+			ranking(enunciado_enviar);
+			send(newSocket, enunciado_enviar, sizeof(enunciado_enviar), 0);
+			bzero(buffer_me, sizeof(buffer_me));
+			recv(newSocket, buffer_me, SIZE_BUFF, 0); // lo recibo
+		}
+		else if (strcmp(buffer_me, "5") == 0) { // salir
+			send(newSocket, SALIR, SIZE_BUFF, 0);
+			printf("Desconexión de " Bold_Red "%s:%d " Bold_Magenta "[Mantenimiento]\n" Reset_Color, inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+			close(newSocket);
+			break;
+		}
 	}
 }
 
 void crearServidor() {
 	char buffer[SIZE_BUFF];
+	addr_size = sizeof(struct sockaddr_in);
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		puts("[-]Error en conexión");
@@ -394,153 +617,18 @@ void crearServidor() {
 		
 		if ((childpid = fork()) == 0) {
 			close(sockfd);
-
+			memset(buffer, 0, SIZE_BUFF);
 			recv(newSocket, buffer, SIZE_BUFF, 0); // apenas se conecta un cliente, recibo el tipo de usuario que es (jugador o de mantenimiento)
-			char tipo_usuario[24]; 
-			strcpy(tipo_usuario, buffer);
-			char usuario_login[50];
-			char pass_login[50];
-			char email_user[50];
-			l_menu_inicio:
-				send(newSocket, menuInicio_c, 165, 0); // mostrar menu inicio
-				memset(buffer, 0, SIZE_BUFF + 1);
-				//bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
 
-				if (strcmp(buffer, "1") == 0) {
-					goto l_login_jugador;
-				}
-				else if (strcmp(buffer, "2") == 0) { // registrar usuario
-					goto l_registrar_jugador;
-				}
-				else if (strcmp(buffer, "3") == 0) {
-					send(newSocket, SALIR, SIZE_BUFF, 0);
-					printf("Desconexión de " Bold_Red "%s:%d\n" Reset_Color, inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
-					close(newSocket);
-				}
-				else {
-					goto l_menu_inicio;
-				}
-
-			l_login_jugador:			
-				send(newSocket, LOGIN_USER, strlen(LOGIN_USER), 0); // pido que ingrese el usuario
-
-				memset(buffer, 0, SIZE_BUFF + 1);
-				//bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
-
-				strcpy(usuario_login, buffer); // guardo el nombre de usuario
-
-				memset(buffer, 0, SIZE_BUFF + 1);
-				//bzero(buffer, sizeof(buffer));
-				send(newSocket, LOGIN_PASS, strlen(LOGIN_PASS), 0); // pido que ingrese la contraseña
-				
-				memset(buffer, 0, SIZE_BUFF + 1);
-				//bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
-
-				strcpy(pass_login, buffer); // guardo la contraseña
-				//bzero(buffer, sizeof(buffer));
-				memset(buffer, 0, SIZE_BUFF + 1);
-				
-				struct Jugador *jugadorNuevo;
-				jugadorNuevo = iniciarSesion(usuario_login,pass_login);
-				
-				if (jugadorNuevo->idJugador > 0) {
-
-					if (strcmp(tipo_usuario, JUGADOR) == 0) {
-						
-						send(newSocket, LOGIN, SIZE_BUFF, 0); // le envio su ID al cliente
-						send(newSocket, jugadorNuevo, sizeof(struct Jugador)+1, 0); 
-						
-						while (1) {
-							send(newSocket, menuJugador_c, SIZE_BUFF, 0);
-							//bzero(buffer, sizeof(buffer));
-							memset(buffer, 0, SIZE_BUFF + 1);
-							recv(newSocket, buffer, SIZE_BUFF, 0); // recibo alguna opcion del menu
-
-							if (strcmp(buffer, "1") == 0) {
-								jugarPartida(usuario_login);
-								memset(buffer, 0, SIZE_BUFF + 1);
-								//bzero(buffer, sizeof(buffer));							
-							}
-							else if(strcmp(buffer, "2") == 0) { // Estado del servidor
-								send(newSocket, menuEstadisticas_c, 200, 0); 
-								memset(buffer, 0, SIZE_BUFF + 1);
-								//bzero(buffer, sizeof(buffer));
-								menuEstadisticas();
-								
-							}
-							else if(strcmp(buffer, "3") == 0) { // cerrar sesion
-        						printf(CYAN"%s"Reset_Color": ha cerrado sesión\n", jugadorNuevo->nombreUsuario);
-								free(jugadorNuevo);
-								goto l_menu_inicio;
-							}
-						}
-					}
-					else if (strcmp(tipo_usuario, MANTENIMIENTO) == 0) {
-
-					}
-				}
-				else {
-					memset(usuario_login, 0, strlen(usuario_login) + 1);
-					memset(pass_login, 0, strlen(pass_login) + 1);
-					//bzero(usuario_login, sizeof(usuario_login));
-					//bzero(pass_login, sizeof(pass_login));
-					goto l_menu_inicio;
-				}
-
-			l_registrar_jugador:
-				send(newSocket, LOGIN_USER, strlen(LOGIN_USER), 0); // pido que ingrese el usuario
-				
-				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
-				strcpy(usuario_login, buffer); // guardo el nombre de usuario
-
-				send(newSocket, LOGIN_PASS, strlen(LOGIN_PASS), 0); // pido que ingrese el usuario
-				
-				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
-				strcpy(pass_login, buffer); // guardo la contraseña
-
-				send(newSocket, LOGIN_EMAIL, strlen(LOGIN_EMAIL), 0); // pido que ingrese el usuario
-				
-				bzero(buffer, sizeof(buffer));
-				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
-				strcpy(email_user, buffer); // guardo el correo
-
-				//send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar 
-				send(newSocket, QUESTION_REGISTER_USER, strlen(QUESTION_REGISTER_USER), 0); // envio mensaje de confirmación
-				bzero(buffer, sizeof(buffer));				
-				recv(newSocket, buffer, SIZE_BUFF, 0); // lo recibo
-				
-				if (strcmp(buffer, "1") == 0) {
-					
-					send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar 
-					int resp = registrarUsuario(usuario_login, pass_login, email_user);
-					
-					if (resp == 1) { // registro completado
-						send(newSocket, MSJ_REGISTER_USER_1, strlen(MSJ_REGISTER_USER_1) + 14, 0); // +14 de los colores
-						printf("Se ha registrado un nuevo usuario: " Bold_Yellow "%s\n" Reset_Color, usuario_login);
-					}
-					else if (resp == 0) { // usuario ingresado en uso
-						send(newSocket, MSJ_REGISTER_USER_2, strlen(MSJ_REGISTER_USER_2) + 13, 0);
-					}
-					else { // error
-						send(newSocket, MSJ_REGISTER_USER_3, strlen(MSJ_REGISTER_USER_3) + 13, 0);
-					}
-				}
-				else {
-					send(newSocket, REGISTER, strlen(REGISTER), 0); // envio llave de registrar 
-					send(newSocket, MSJ_REGISTER_USER_4, strlen(MSJ_REGISTER_USER_3) + 13, 0);					
-				}
-				bzero(buffer, sizeof(buffer));
-				goto l_menu_inicio;
-
+			if (strcmp(buffer, JUGADOR) == 0) {
+				gestionClienteJugador();
+			}
+			else if (strcmp(buffer, MANTENIMIENTO) == 0) {
+				gestionClienteMantenimiento();
+			}
 		}
 	}	
 }
-
 
 int main() {
 	crearServidor();

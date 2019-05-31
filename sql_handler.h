@@ -27,5 +27,10 @@ void jugadoresEnJuegoActivo(char* enunciado_enviar);
 int numeroPreguntasPorEstado(int estadoPregunta);
 int numeroPreguntas();
 void estadisticasPorPregunta(char* enunciado_enviar, int estadoPregunta);
-
+int crearPregunta(char* enunciado, char* opcion1, char* opcion2, char* opcion3, int puntaje);
+void insertOpcion(int idPregunta, char* opcion);
+int updatePregunta(int idPregunta, char* enunciado, int puntaje);
+int deletePregunta(int idPregunta);
+void selectOpciones(int idPregunta, char* enunciado_enviar);
+void selectAllPregunta(char* enunciado_enviar);
 #endif

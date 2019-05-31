@@ -40,7 +40,6 @@ int initConnection() {
 
 int setConnection(char* query) {
     int rc = sqlite3_prepare_v2(db, query, -1, &res, NULL);    
-    
     if (rc != SQLITE_OK) {
         fprintf(stderr, "Failed to fetch data: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
@@ -49,39 +48,28 @@ int setConnection(char* query) {
     return rc;       
 }
 
-void endConnection(){
-    sqlite3_finalize(res);
-    sqlite3_close(db);
-}
-
-
 struct Pregunta* getPregunta(char* tuplaPreguntasUsadas) {
-    // select idUsuario from usuarios where idUsuario not in "(1,2,5)";   
-    char p1[120] = "SELECT p.idPregunta, p.enunciado, p.puntaje FROM pregunta p where p.idPregunta NOT IN ";
-    char p2[120] = " ORDER BY RANDOM() LIMIT 1;";
-
-    strcat(p1, tuplaPreguntasUsadas); strcat(p1, p2);
-    int rc = setConnection(p1);
-
     struct Pregunta *preguntaJuego;
-    preguntaJuego = /*(struct Pregunta*)*/malloc(sizeof(struct Pregunta));
-
+    int rc, indice;  
+    char p1[2000] = "SELECT p.idPregunta, p.enunciado, p.puntaje FROM pregunta p where p.idPregunta NOT IN ";
+    char p2[2000] = " ORDER BY RANDOM() LIMIT 1;";
+    strcat(p1, tuplaPreguntasUsadas); 
+    strcat(p1, p2);
+    rc = setConnection(p1);
+    preguntaJuego = malloc(sizeof(struct Pregunta));
     if ((rc = sqlite3_step(res)) == SQLITE_ROW) {
         preguntaJuego->idPregunta = sqlite3_column_int(res, 0);
         strcpy(preguntaJuego->enunciado,(char*)sqlite3_column_text(res, 1));
         preguntaJuego->puntaje = sqlite3_column_int(res, 2); 
     }
     sqlite3_finalize(res);
-
     rc = setConnection("SELECT pr.idPR, pr.respuesta FROM [pregunta-respuesta] pr where pr.idPregunta = ?;");
     rc = sqlite3_bind_int(res, 1, preguntaJuego->idPregunta);
-
     if (rc != SQLITE_OK) {
         printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
         sqlite3_close(db);
     } 
-
-    int indice = 0;
+    indice = 0;
     while((rc = sqlite3_step(res)) == SQLITE_ROW) {
         preguntaJuego->opciones[indice].idRespuesta = sqlite3_column_int(res, 0); 
         strcpy(preguntaJuego->opciones[indice].respuesta,(char*)sqlite3_column_text(res, 1));
@@ -94,19 +82,14 @@ struct Pregunta* getPregunta(char* tuplaPreguntasUsadas) {
 struct Jugador* iniciarSesion(char* username, char* password){
     struct Jugador *usuarioJugador;
 	usuarioJugador = (struct Jugador*)malloc(sizeof(struct Jugador));
-
     int rc = setConnection("SELECT u.idUSuario, u.nombreUsuario, u.correo FROM usuarios u where u.nombreUsuario = ? and u.contrasenia = ?;");
-    
     rc = sqlite3_bind_text(res, 1, username, -1, 0);
     rc = sqlite3_bind_text(res, 2, password, -1, 0);
-
     if (rc != SQLITE_OK) {
         printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
         sqlite3_close(db);
     }
-
     usuarioJugador->idJugador = 0; // en caso de no entrar el while, 0 indica que no encontró nada
-
     // Si usuario no existe no entra al while.
 	while ((rc = sqlite3_step(res)) == SQLITE_ROW) {
 		usuarioJugador->idJugador = sqlite3_column_int(res, 0);
@@ -116,45 +99,33 @@ struct Jugador* iniciarSesion(char* username, char* password){
         strcpy(usuarioJugador->correo, (char*)sqlite3_column_text(res, 2));
     }
 	sqlite3_finalize(res);
-    //endConnection();
-
     return usuarioJugador;
 }
 
 int registrarUsuario(char* username, char* password, char* email) {
-
     int rc = setConnection("SELECT u.nombreUsuario FROM usuarios u where u.nombreUsuario == ?;");
-
-    // bind an integer to the parameter placeholder. 
     rc = sqlite3_bind_text(res, 1, username, strlen(username), 0);
-    
     if (rc != SQLITE_OK) {
         printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
         sqlite3_close(db);
     } 
-
-	if ((rc = sqlite3_step(res)) == SQLITE_ROW) {
+	if ((rc = sqlite3_step(res)) == SQLITE_ROW) { // El usuario existe, 
         sqlite3_finalize(res);
 		return 0; // el usuario ingresado esta opcupado
 	}
     sqlite3_finalize(res);
-
     char *zErrMsg = 0;
     sqlite3_stmt *stmt;
     const char *pzTest;
     char *szSQL;
-
     // Insert data item into myTable
     szSQL = "INSERT INTO usuarios (nombreUsuario, contrasenia, correo) values (?,?,?)";
-
     rc = sqlite3_prepare(db, szSQL, strlen(szSQL), &stmt, &pzTest);
-
     if (rc == SQLITE_OK) {
         // bind the value 
         sqlite3_bind_text(stmt, 1, username, strlen(username), 0);
         sqlite3_bind_text(stmt, 2, password, strlen(password), 0);
         sqlite3_bind_text(stmt, 3, email, strlen(email), 0);
-
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
         return 1; // se registró el usuario
@@ -335,7 +306,7 @@ int comprobarMiTurno(int idPartida, int idJugadorActual) {
 
 char* armarTuplaPreguntadasUsadas(int idPartida) { // se retorna: () ó (1) ó (1, 4, ...)
     char* preguntasUsadas;
-    int rc = setConnection("select p.idPregunta from pregunta p inner join [pregunta-respuesta] pp on p.idPregunta = pp.idPregunta inner join turnoJugador tj on pp.idPR = tj.idPR inner join partida par on tj.idPartida = par.idPartida where tj.idPartida = ?;"); 
+    int rc = setConnection("select distinct p.idPregunta from pregunta p inner join [pregunta-respuesta] pp on p.idPregunta = pp.idPregunta inner join turnoJugador tj on pp.idPR = tj.idPR inner join partida par on tj.idPartida = par.idPartida where tj.idPartida = ?;"); 
     rc = sqlite3_bind_int(res, 1, idPartida);
 
     if (rc != SQLITE_OK) {
@@ -493,7 +464,7 @@ void jugadoresEnJuegoActivo(char* enunciado_enviar){
             c+=1;
         } 
     }
-    strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>>");
+    strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>> ");
     sqlite3_finalize(res);
 }
 
@@ -509,7 +480,7 @@ void jugadoresRegistrados(char* enunciado_enviar){
         strcat(enunciado_enviar, sqlite3_column_text(res, 0));
         strcat(enunciado_enviar, "\n");
     }
-    strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>>");
+    strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>> ");
     sqlite3_finalize(res);
 }
 
@@ -603,3 +574,116 @@ void ranking(char* enunciado_enviar){
     strcat(enunciado_enviar, "\nIngrese cualquier tecla para salir \n>>> ");
     sqlite3_finalize(res);
 }
+
+int crearPregunta(char* enunciado, char* opcion1, char* opcion2, char* opcion3, int puntaje){
+    int idPregunta;
+    int rc = setConnection("INSERT INTO pregunta (enunciado, puntaje) values (?,?)");
+    rc = sqlite3_bind_text(res, 1, enunciado, strlen(enunciado), 0);
+    rc = sqlite3_bind_int(res, 2, puntaje);
+    sqlite3_step(res);
+    sqlite3_finalize(res);
+    // Obtener ID pregunta insertada
+    rc = setConnection("select last_insert_rowid() from Pregunta");
+    if((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        idPregunta = sqlite3_column_int(res, 0);
+        insertOpcion(idPregunta, opcion1);
+        insertOpcion(idPregunta, opcion2);
+        if (opcion3!=""){
+            insertOpcion(idPregunta, opcion3);
+        }
+    }
+    sqlite3_finalize(res);
+    return 1;
+}
+
+void insertOpcion(int idPregunta, char* opcion){
+    int rc = setConnection("INSERT INTO [pregunta-respuesta] (idPregunta, respuesta) values (?,?);");
+    rc = sqlite3_bind_int(res, 1, idPregunta);
+    rc = sqlite3_bind_text(res, 2, opcion, strlen(opcion), 0);
+    if (rc != SQLITE_OK) {
+        printf("Failed to bind parameter: %s\n\r", sqlite3_errstr(rc));
+        sqlite3_close(db);
+    } 
+	sqlite3_step(res);
+    sqlite3_finalize(res);
+}
+
+int comprobarUsoDePregunta(int idPregunta){
+    int retorno = 0; // No está siendo usada en turno jugador
+    int rc = setConnection("select pr.idPregunta from turnoJugador tp inner join [pregunta-respuesta] pr on pr.idPR = tp.idPR WHERE pr.idPregunta = ?;"); 
+    rc = sqlite3_bind_int(res, 1, idPregunta);
+    if((rc = sqlite3_step(res)) == SQLITE_ROW){ // Está siendo usada en turnoJugador
+        retorno = 1;
+    }
+    sqlite3_finalize(res);
+    return retorno;
+}
+
+int updatePregunta(int idPregunta, char* enunciado, int puntaje){
+    char retornoBooleano[5];
+    int rc;
+    if(comprobarUsoDePregunta(idPregunta)) {
+        return -1;
+    }
+    rc = setConnection("update pregunta set enunciado = ifnull(?,enunciado), puntaje = ifnull(?,puntaje) where idPregunta = ?"); 
+    if(enunciado==""){
+        rc = sqlite3_bind_null(res,1);
+    }else{
+        rc = sqlite3_bind_text(res, 1, enunciado, strlen(enunciado), 0);
+    }
+    if(puntaje==-1){
+        rc = sqlite3_bind_null(res,2);
+    }else{
+        rc = sqlite3_bind_int(res, 2, puntaje);
+    }
+    rc = sqlite3_bind_int(res, 3, idPregunta);
+    sqlite3_finalize(res);
+    return 1;
+}
+
+int deletePregunta(int idPregunta){
+    int rc = setConnection("DELETE FROM pregunta WHERE idPregunta = ?"); 
+    rc = sqlite3_bind_int(res, 1, idPregunta);
+    sqlite3_step(res);
+    sqlite3_finalize(res);
+    return 1;
+}
+
+void selectOpciones(int idPregunta, char* enunciado_enviar){
+    int numOpcion = 1;
+    char temp[10];
+    int rc = setConnection("select p.respuesta from pregunta p inner join [pregunta-respuesta] pr on pr.idPregunta = p.idPregunta where p.idPregunta = ?;");
+    rc = sqlite3_bind_int(res, 1, idPregunta);
+    while((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        strcat(enunciado_enviar, "\n[");
+        memset(temp, 0, 10);
+        sprintf(temp, "%d", numOpcion); 
+        strcat(enunciado_enviar, temp);
+        strcat(enunciado_enviar, "] ");
+        strcat(enunciado_enviar, sqlite3_column_text(res, 0));
+        numOpcion+=1;
+    }
+    sqlite3_finalize(res);
+}
+
+void selectAllPregunta(char* enunciado_enviar){
+    int idPregunta;
+    bzero(enunciado_enviar, strlen(enunciado_enviar));
+    strcat(enunciado_enviar, "\n" Bold_Yellow);
+	strcat(enunciado_enviar, "Preguntas almacenadas");
+	strcat(enunciado_enviar, Reset_Color);
+    int rc = setConnection("select p.idPregunta, p.enunciado, p.puntaje from pregunta p;");
+    while((rc = sqlite3_step(res)) == SQLITE_ROW) {
+        idPregunta = sqlite3_column_int(res, 0);
+        strcat(enunciado_enviar, "\nPregunta: ");
+        strcat(enunciado_enviar, sqlite3_column_text(res, 1));
+        strcat(enunciado_enviar, "\nPuntaje: ");
+        strcat(enunciado_enviar, sqlite3_column_text(res, 2));
+        //selectOpciones(idPregunta,enunciado_enviar);
+        strcat(enunciado_enviar, "\n$");
+    }
+    sqlite3_finalize(res);
+}
+
+
+

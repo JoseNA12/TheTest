@@ -23,7 +23,7 @@ struct Jugador *jugadorActual;
 	Compilar con: gcc cliente.c -o cliente
 */
 
-int crearCliente() {
+int crearClienteMantenimiento() {
 	int clientSocket, ret;
 	struct sockaddr_in serverAddr;
 	char buffer[SIZE_BUFF];
@@ -48,8 +48,8 @@ int crearCliente() {
 	}
 	puts("[+]Conectado al servidor");
 
-	// le digo al servidor que soy JUGADOR
-	send(clientSocket, JUGADOR, strlen(JUGADOR), 0);
+	// le digo al servidor que soy de MANTENIMIENTO
+	send(clientSocket, MANTENIMIENTO, strlen(MANTENIMIENTO), 0);
 	bzero(buffer, sizeof(buffer));
 
 	if (recv(clientSocket, buffer, SIZE_BUFF, 0) < 0) { 
@@ -69,40 +69,10 @@ int crearCliente() {
 				puts("[-]Desconectado del servidor");
 				exit(1);
 			}
-			else if (strcmp(buffer, LOGIN) == 0) {
-				send(clientSocket, "ok", strlen("ok"), 0);
-				jugadorActual = (struct Jugador*)malloc(sizeof(struct Jugador));
-				recv(clientSocket, jugadorActual, sizeof(struct Jugador)+1, 0);
-				send(clientSocket, "ok", strlen("ok"), 0);
-				bzero(buffer, sizeof(buffer));
-				// recibo el menu
-				recv(clientSocket, buffer, sizeof(buffer), 0);
-			}
-			else if (strncmp(buffer, REGISTER, strlen(REGISTER)) == 0) { // se ha solicitado registrar un jugador
-				send(clientSocket, "ok", strlen("ok"), 0);
-				recv(clientSocket, buffer, SIZE_BUFF, 0);
-				puts(buffer);
-				bzero(buffer, sizeof(buffer));
-				// recibo el menu
-				recv(clientSocket, buffer, SIZE_BUFF, 0);
-			}
-			else if (strncmp(buffer, SEND_PREGUNTA, strlen(SEND_PREGUNTA)) == 0) { // se ha solicitado registrar un jugador
-				send(clientSocket, "ok", strlen("ok"), 0);
-				bzero(buffer, sizeof(buffer));
-				recv(clientSocket, buffer, sizeof(buffer), 0);
-			}
-			else if (strncmp(buffer, RECEIVE_OPCIONES, strlen(RECEIVE_OPCIONES)) == 0) { // se ha solicitado registrar un jugador
-				send(clientSocket, "ok", strlen("ok"), 0);
-				bzero(buffer, sizeof(buffer));
-				recv(clientSocket, buffer, sizeof(buffer), 0);
-				puts(buffer);
-				bzero(buffer, sizeof(buffer));
-				goto l_brinco_magico;
-			}
 		}
 	}
 }
 
 void main() {
-	crearCliente();
+	crearClienteMantenimiento();
 }
